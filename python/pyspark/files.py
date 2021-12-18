@@ -58,8 +58,7 @@ class SparkFiles:
         """
         if cls._is_running_on_worker:
             return cast(str, cls._root_directory)
-        else:
-            # This will have to change if we support multiple SparkContexts:
-            assert cls._sc is not None
-            assert cls._sc._jvm is not None
-            return cls._sc._jvm.org.apache.spark.SparkFiles.getRootDirectory()  # type: ignore[attr-defined]
+        # This will have to change if we support multiple SparkContexts:
+        assert cls._sc is not None
+        assert cls._sc._jvm is not None
+        return cls._sc._jvm.org.apache.spark.SparkFiles.getRootDirectory()  # type: ignore[attr-defined]

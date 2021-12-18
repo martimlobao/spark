@@ -84,9 +84,7 @@ def _py2java(sc: SparkContext, obj: Any) -> JavaObject:
         obj = [_py2java(sc, x) for x in obj]
     elif isinstance(obj, JavaObject):
         pass
-    elif isinstance(obj, (int, float, bool, bytes, str)):
-        pass
-    else:
+    elif not isinstance(obj, (int, float, bool, bytes, str)):
         data = bytearray(CPickleSerializer().dumps(obj))
         assert sc._jvm is not None
         obj = sc._jvm.org.apache.spark.mllib.api.python.SerDe.loads(data)  # type: ignore[attr-defined]

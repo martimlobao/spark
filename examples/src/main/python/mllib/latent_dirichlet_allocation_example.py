@@ -40,7 +40,7 @@ if __name__ == "__main__":
     topics = ldaModel.topicsMatrix()
     for topic in range(3):
         print("Topic " + str(topic) + ":")
-        for word in range(0, ldaModel.vocabSize()):
+        for word in range(ldaModel.vocabSize()):
             print(" " + str(topics[word][topic]))
 
     # Save and load model

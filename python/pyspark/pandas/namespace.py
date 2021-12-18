@@ -292,15 +292,12 @@ def read_csv(
     --------
     >>> ps.read_csv('data.csv')  # doctest: +SKIP
     """
-    # For latin-1 encoding is same as iso-8859-1, that's why its mapped to iso-8859-1.
-    encoding_mapping = {"latin-1": "iso-8859-1"}
-
     if "options" in options and isinstance(options.get("options"), dict) and len(options) == 1:
         options = options.get("options")
 
-    if mangle_dupe_cols is not True:
+    if not mangle_dupe_cols:
         raise ValueError("mangle_dupe_cols can only be `True`: %s" % mangle_dupe_cols)
-    if parse_dates is not False:
+    if parse_dates:
         raise ValueError("parse_dates can only be `False`: %s" % parse_dates)
 
     if usecols is not None and not callable(usecols):
@@ -333,6 +330,9 @@ def read_csv(
         reader.options(**options)
 
         if encoding is not None:
+            # For latin-1 encoding is same as iso-8859-1, that's why its mapped to iso-8859-1.
+            encoding_mapping = {"latin-1": "iso-8859-1"}
+
             reader.option("encoding", encoding_mapping.get(encoding, encoding))
 
         column_labels: Dict[Any, str]
@@ -391,12 +391,12 @@ def read_csv(
                     "'usecols' must either be list-like of all strings, "
                     "all unicode, all integers or a callable."
                 )
-            if len(missing) > 0:
+            if missing:
                 raise ValueError(
                     "Usecols do not match columns, columns expected but not " "found: %s" % missing
                 )
 
-            if len(column_labels) > 0:
+            if column_labels:
                 sdf = sdf.select([scol_for(sdf, col) for col in column_labels.values()])
             else:
                 sdf = default_session().createDataFrame([], schema=StructType())
@@ -3388,22 +3388,21 @@ def to_numeric(arg, errors="raise"):
     >>> ps.to_numeric('1.0')
     1.0
     """
-    if isinstance(arg, Series):
-        if errors == "coerce":
-            return arg._with_new_scol(arg.spark.column.cast("float"))
-        elif errors == "raise":
-            scol = arg.spark.column
-            scol_casted = scol.cast("float")
-            cond = F.when(
-                F.assert_true(scol.isNull() | scol_casted.isNotNull()).isNull(), scol_casted
-            )
-            return arg._with_new_scol(cond)
-        elif errors == "ignore":
-            raise NotImplementedError("'ignore' is not implemented yet, when the `arg` is Series.")
-        else:
-            raise ValueError("invalid error value specified")
-    else:
+    if not isinstance(arg, Series):
         return pd.to_numeric(arg, errors=errors)
+    if errors == "coerce":
+        return arg._with_new_scol(arg.spark.column.cast("float"))
+    elif errors == "raise":
+        scol = arg.spark.column
+        scol_casted = scol.cast("float")
+        cond = F.when(
+            F.assert_true(scol.isNull() | scol_casted.isNotNull()).isNull(), scol_casted
+        )
+        return arg._with_new_scol(cond)
+    elif errors == "ignore":
+        raise NotImplementedError("'ignore' is not implemented yet, when the `arg` is Series.")
+    else:
+        raise ValueError("invalid error value specified")
 
 
 def broadcast(obj: DataFrame) -> DataFrame:
@@ -3502,7 +3501,7 @@ def read_orc(
 
     if columns is not None:
         psdf_columns = psdf.columns
-        new_columns = list()
+        new_columns = []
         for column in list(columns):
             if column in psdf_columns:
                 new_columns.append(column)

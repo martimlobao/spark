@@ -233,20 +233,18 @@ class LogisticRegressionModel(LinearClassificationModel):
         else:
             best_class = 0
             max_margin = 0.0
-            if x.size + 1 == self._dataWithBiasSize:
-                for i in range(0, self._numClasses - 1):
+            for i in range(self._numClasses - 1):
+                if x.size + 1 == self._dataWithBiasSize:
                     margin = (
-                        x.dot(self._weightsMatrix[i][0 : x.size]) + self._weightsMatrix[i][x.size]
+                        x.dot(self._weightsMatrix[i][: x.size])
+                        + self._weightsMatrix[i][x.size]
                     )
-                    if margin > max_margin:
-                        max_margin = margin
-                        best_class = i + 1
-            else:
-                for i in range(0, self._numClasses - 1):
+
+                else:
                     margin = x.dot(self._weightsMatrix[i])
-                    if margin > max_margin:
-                        max_margin = margin
-                        best_class = i + 1
+                if margin > max_margin:
+                    max_margin = margin
+                    best_class = i + 1
             return best_class
 
     @since("1.4.0")

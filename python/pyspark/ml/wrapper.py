@@ -147,7 +147,7 @@ class JavaParams(JavaWrapper, Params, metaclass=ABCMeta):
             if self.hasDefault(param):
                 pair = self._make_java_param_pair(param, self._defaultParamMap[param])
                 pair_defaults.append(pair)
-        if len(pair_defaults) > 0:
+        if pair_defaults:
             sc = SparkContext._active_spark_context
             pair_defaults_seq = sc._jvm.PythonUtils.toSeq(pair_defaults)
             self._java_obj.setDefault(pair_defaults_seq)
@@ -200,7 +200,7 @@ class JavaParams(JavaWrapper, Params, metaclass=ABCMeta):
         Transforms a Java ParamMap into a Python ParamMap.
         """
         sc = SparkContext._active_spark_context
-        paramMap = dict()
+        paramMap = {}
         for pair in javaParamMap.toList():
             param = pair.param()
             if self.hasParam(str(param.name())):
@@ -290,7 +290,7 @@ class JavaParams(JavaWrapper, Params, metaclass=ABCMeta):
             Copy of this instance
         """
         if extra is None:
-            extra = dict()
+            extra = {}
         that = super(JavaParams, self).copy(extra)
         if self._java_obj is not None:
             that._java_obj = self._java_obj.copy(self._empty_java_param_map())

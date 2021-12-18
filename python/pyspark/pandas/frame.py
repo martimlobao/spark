@@ -699,9 +699,10 @@ class DataFrame(Frame, Generic[T]):
     def _apply_series_op(
         self, op: Callable[["Series"], Union["Series", Column]], should_resolve: bool = False
     ) -> "DataFrame":
-        applied = []
-        for label in self._internal.column_labels:
-            applied.append(op(self._psser_for(label)))
+        applied = [
+            op(self._psser_for(label)) for label in self._internal.column_labels
+        ]
+
         internal = self._internal.with_new_columns(applied)
         if should_resolve:
             internal = internal.resolved_copy
@@ -1699,11 +1700,7 @@ class DataFrame(Frame, Generic[T]):
         """
         # Make sure locals() call is at the top of the function so we don't capture local variables.
         args = locals()
-        if max_rows is not None:
-            psdf = self.head(max_rows)
-        else:
-            psdf = self
-
+        psdf = self.head(max_rows) if max_rows is not None else self
         return validate_arguments_and_invoke_function(
             psdf._to_internal_pandas(), self.to_html, pd.DataFrame.to_html, args
         )
@@ -1816,11 +1813,7 @@ class DataFrame(Frame, Generic[T]):
         """
         # Make sure locals() call is at the top of the function so we don't capture local variables.
         args = locals()
-        if max_rows is not None:
-            psdf = self.head(max_rows)
-        else:
-            psdf = self
-
+        psdf = self.head(max_rows) if max_rows is not None else self
         return validate_arguments_and_invoke_function(
             psdf._to_internal_pandas(), self.to_string, pd.DataFrame.to_string, args
         )
@@ -2045,7 +2038,7 @@ defaultdict(<class 'list'>, {'col..., 'col...})]
         args = locals()
         psdf = self
         return validate_arguments_and_invoke_function(
-            psdf._to_internal_pandas(), self.to_latex, pd.DataFrame.to_latex, args
+            psdf._to_internal_pandas(), psdf.to_latex, pd.DataFrame.to_latex, args
         )
 
     # TODO: enable doctests once we drop Spark 2.3.x (due to type coercion logic
@@ -2211,12 +2204,15 @@ defaultdict(<class 'list'>, {'col..., 'col...})]
             [
                 F.to_json(
                     F.struct(
-                        F.array(*[scol for scol in self._internal.index_spark_columns]).alias("a")
+                        F.array(*list(self._internal.index_spark_columns)).alias(
+                            "a"
+                        )
                     )
                 ).alias("index"),
                 F.col("pairs.*"),
             ]
         )
+
 
         # After that, executes pivot with key and its index column.
         # Note that index column should contain unique values since column names
@@ -2699,44 +2695,43 @@ defaultdict(<class 'list'>, {'col..., 'col...})]
         return_sig = spec.annotations.get("return", None)
         should_infer_schema = return_sig is None
 
-        if should_infer_schema:
-            # Here we execute with the first 1000 to get the return type.
-            # If the records were less than 1000, it uses pandas API directly for a shortcut.
-            log_advice(
-                "If the type hints is not specified for `transform`, "
-                "it is expensive to infer the data type internally."
-            )
-            limit = get_option("compute.shortcut_limit")
-            pdf = self.head(limit + 1)._to_internal_pandas()
-            transformed = pdf.transform(func, axis, *args, **kwargs)
-            psdf: DataFrame = DataFrame(transformed)
-            if len(pdf) <= limit:
-                return psdf
-
-            applied = []
-            data_fields = []
-            for input_label, output_label in zip(
-                self._internal.column_labels, psdf._internal.column_labels
-            ):
-                psser = self._psser_for(input_label)
-
-                field = psdf._internal.field_for(output_label).normalize_spark_type()
-                data_fields.append(field)
-
-                return_schema = field.spark_type
-                applied.append(
-                    psser.pandas_on_spark._transform_batch(
-                        func=lambda c: func(c, *args, **kwargs),
-                        return_type=SeriesType(field.dtype, return_schema),
-                    )
-                )
-
-            internal = self._internal.with_new_columns(applied, data_fields=data_fields)
-            return DataFrame(internal)
-        else:
+        if not should_infer_schema:
             return self._apply_series_op(
                 lambda psser: psser.pandas_on_spark.transform_batch(func, *args, **kwargs)
             )
+        # Here we execute with the first 1000 to get the return type.
+        # If the records were less than 1000, it uses pandas API directly for a shortcut.
+        log_advice(
+            "If the type hints is not specified for `transform`, "
+            "it is expensive to infer the data type internally."
+        )
+        limit = get_option("compute.shortcut_limit")
+        pdf = self.head(limit + 1)._to_internal_pandas()
+        transformed = pdf.transform(func, axis, *args, **kwargs)
+        psdf: DataFrame = DataFrame(transformed)
+        if len(pdf) <= limit:
+            return psdf
+
+        applied = []
+        data_fields = []
+        for input_label, output_label in zip(
+            self._internal.column_labels, psdf._internal.column_labels
+        ):
+            psser = self._psser_for(input_label)
+
+            field = psdf._internal.field_for(output_label).normalize_spark_type()
+            data_fields.append(field)
+
+            return_schema = field.spark_type
+            applied.append(
+                psser.pandas_on_spark._transform_batch(
+                    func=lambda c: func(c, *args, **kwargs),
+                    return_type=SeriesType(field.dtype, return_schema),
+                )
+            )
+
+        internal = self._internal.with_new_columns(applied, data_fields=data_fields)
+        return DataFrame(internal)
 
     def pop(self, item: Name) -> "DataFrame":
         """
@@ -3309,16 +3304,17 @@ defaultdict(<class 'list'>, {'col..., 'col...})]
         # |                4|  4|500|             false|                 -4|             false|  ...
         # +-----------------+---+---+------------------+-------------------+------------------+--...
 
-        data_spark_columns = []
-        for label in self._internal.column_labels:
-            data_spark_columns.append(
-                F.when(
-                    psdf[tmp_cond_col_name(name_like_string(label))].spark.column,
-                    psdf._internal.spark_column_for(label),
-                )
-                .otherwise(psdf[tmp_other_col_name(name_like_string(label))].spark.column)
-                .alias(psdf._internal.spark_column_name_for(label))
+        data_spark_columns = [
+            F.when(
+                psdf[tmp_cond_col_name(name_like_string(label))].spark.column,
+                psdf._internal.spark_column_for(label),
             )
+            .otherwise(
+                psdf[tmp_other_col_name(name_like_string(label))].spark.column
+            )
+            .alias(psdf._internal.spark_column_name_for(label))
+            for label in self._internal.column_labels
+        ]
 
         return DataFrame(
             psdf._internal.with_new_columns(
@@ -3573,11 +3569,10 @@ defaultdict(<class 'list'>, {'col..., 'col...})]
             data_fields=[self._internal.field_for(label) for label in column_labels],
         )
 
-        if inplace:
-            self._update_internal_frame(internal)
-            return None
-        else:
+        if not inplace:
             return DataFrame(internal)
+        self._update_internal_frame(internal)
+        return None
 
     def reset_index(
         self,
@@ -3733,13 +3728,10 @@ defaultdict(<class 'list'>, {'col..., 'col...})]
         multi_index = self._internal.index_level > 1
 
         def rename(index: int) -> Label:
-            if multi_index:
-                return ("level_{}".format(index),)
+            if not multi_index and ("index",) not in self._internal.column_labels:
+                return ("index",)
             else:
-                if ("index",) not in self._internal.column_labels:
-                    return ("index",)
-                else:
-                    return ("level_{}".format(index),)
+                return ("level_{}".format(index),)
 
         if level is None:
             new_column_labels = [
@@ -3981,17 +3973,16 @@ defaultdict(<class 'list'>, {'col..., 'col...})]
             raise TypeError("loc must be int")
 
         assert 0 <= loc <= len(self.columns)
-        assert allow_duplicates is False
+        assert not allow_duplicates
 
         if not is_name_like_value(column):
             raise TypeError(
                 '"column" should be a scalar value or tuple that contains scalar values'
             )
 
-        if is_name_like_tuple(column):
-            if len(column) != len(self.columns.levels):
-                # To be consistent with pandas
-                raise ValueError('"column" must have length equal to number of column levels.')
+        if is_name_like_tuple(column) and len(column) != len(self.columns.levels):
+            # To be consistent with pandas
+            raise ValueError('"column" must have length equal to number of column levels.')
 
         if column in self.columns:
             raise ValueError("cannot insert %s, already exists" % column)
@@ -4310,11 +4301,8 @@ defaultdict(<class 'list'>, {'col..., 'col...})]
 
         column = verify_temp_column_name(sdf, "__duplicated__")
 
-        if keep == "first" or keep == "last":
-            if keep == "first":
-                ord_func = F.asc
-            else:
-                ord_func = F.desc
+        if keep in {"first", "last"}:
+            ord_func = F.asc if keep == "first" else F.desc
             window = (
                 Window.partitionBy(*group_cols)
                 .orderBy(ord_func(NATURAL_ORDER_COLUMN_NAME))
@@ -4938,7 +4926,9 @@ defaultdict(<class 'list'>, {'col..., 'col...})]
 
         column_labels = self._internal.column_labels.copy()
         for label, (scol, field) in pairs.items():
-            if label not in set(i[: len(label)] for i in self._internal.column_labels):
+            if label not in {
+                i[: len(label)] for i in self._internal.column_labels
+            }:
                 name = name_like_string(label)
                 scols.append(scol.alias(name))
                 if field is not None:
@@ -5100,7 +5090,10 @@ defaultdict(<class 'list'>, {'col..., 'col...})]
         psdf = self
 
         return validate_arguments_and_invoke_function(
-            psdf._to_internal_pandas(), self.to_records, pd.DataFrame.to_records, args
+            psdf._to_internal_pandas(),
+            psdf.to_records,
+            pd.DataFrame.to_records,
+            args,
         )
 
     def copy(self, deep: bool = True) -> "DataFrame":
@@ -5233,27 +5226,27 @@ defaultdict(<class 'list'>, {'col..., 'col...})]
         axis = validate_axis(axis)
         inplace = validate_bool_kwarg(inplace, "inplace")
 
-        if thresh is None:
-            if how is None:
+        if how is None:
+            if thresh is None:
                 raise TypeError("must specify how or thresh")
-            elif how not in ("any", "all"):
+        elif how not in ("any", "all"):
+            if thresh is None:
                 raise ValueError("invalid how option: {h}".format(h=how))
 
         labels: Optional[List[Label]]
-        if subset is not None:
-            if isinstance(subset, str):
-                labels = [(subset,)]
-            elif isinstance(subset, tuple):
-                labels = [subset]
-            else:
-                labels = [sub if isinstance(sub, tuple) else (sub,) for sub in subset]
-        else:
+        if subset is None:
             labels = None
 
+        elif isinstance(subset, str):
+            labels = [(subset,)]
+        elif isinstance(subset, tuple):
+            labels = [subset]
+        else:
+            labels = [sub if isinstance(sub, tuple) else (sub,) for sub in subset]
         if axis == 0:
             if labels is not None:
                 invalids = [label for label in labels if label not in self._internal.column_labels]
-                if len(invalids) > 0:
+                if invalids:
                     raise KeyError(invalids)
             else:
                 labels = self._internal.column_labels
@@ -5274,11 +5267,9 @@ defaultdict(<class 'list'>, {'col..., 'col...})]
                 pred = cnt > SF.lit(0)
 
             internal = self._internal.with_filter(pred)
-            if inplace:
-                self._update_internal_frame(internal)
-                return None
-            else:
+            if not inplace:
                 return DataFrame(internal)
+            self._update_internal_frame(internal)
         else:
             assert axis == 1
 
@@ -5336,11 +5327,10 @@ defaultdict(<class 'list'>, {'col..., 'col...})]
                 ]
 
             psdf = self[column_labels]
-            if inplace:
-                self._update_internal_frame(psdf._internal)
-                return None
-            else:
+            if not inplace:
                 return psdf
+            self._update_internal_frame(psdf._internal)
+        return None
 
     # TODO: add 'limit' when value parameter exists
     def fillna(
@@ -5453,8 +5443,7 @@ defaultdict(<class 'list'>, {'col..., 'col...})]
                             return psser._fillna(
                                 value=value[k], method=method, axis=axis, limit=limit
                             )
-                    else:
-                        return psser
+                    return psser
 
             else:
                 op = lambda psser: psser._fillna(value=value, method=method, axis=axis, limit=limit)
@@ -5702,11 +5691,10 @@ defaultdict(<class 'list'>, {'col..., 'col...})]
             n = len(self) + n
         if n <= 0:
             return DataFrame(self._internal.with_filter(SF.lit(False)))
-        else:
-            sdf = self._internal.resolved_copy.spark_frame
-            if get_option("compute.ordered_head"):
-                sdf = sdf.orderBy(NATURAL_ORDER_COLUMN_NAME)
-            return DataFrame(self._internal.with_new_sdf(sdf.limit(n)))
+        sdf = self._internal.resolved_copy.spark_frame
+        if get_option("compute.ordered_head"):
+            sdf = sdf.orderBy(NATURAL_ORDER_COLUMN_NAME)
+        return DataFrame(self._internal.with_new_sdf(sdf.limit(n)))
 
     def last(self, offset: Union[str, DateOffset]) -> "DataFrame":
         """

@@ -61,7 +61,7 @@ items in the preceding sets.
     # Add empty dependencies where needed.
     data.update({item: set() for item in extra_items_in_deps})
     while True:
-        ordered = set(item for item, dep in data.items() if len(dep) == 0)
+        ordered = {item for item, dep in data.items() if len(dep) == 0}
         if not ordered:
             break
         yield ordered

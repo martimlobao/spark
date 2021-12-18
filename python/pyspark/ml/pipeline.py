@@ -106,7 +106,7 @@ class Pipeline(Estimator, MLReadable, MLWritable):
     def _fit(self, dataset):
         stages = self.getStages()
         for stage in stages:
-            if not (isinstance(stage, Estimator) or isinstance(stage, Transformer)):
+            if not isinstance(stage, (Estimator, Transformer)):
                 raise TypeError("Cannot recognize a pipeline stage of type %s." % type(stage))
         indexOfLastEstimator = -1
         for i, stage in enumerate(stages):
@@ -144,7 +144,7 @@ class Pipeline(Estimator, MLReadable, MLWritable):
             new instance
         """
         if extra is None:
-            extra = dict()
+            extra = {}
         that = Params.copy(self, extra)
         stages = [stage.copy(extra) for stage in that.getStages()]
         return that.setStages(stages)
@@ -229,9 +229,8 @@ class PipelineReader(MLReader):
         metadata = DefaultParamsReader.loadMetadata(path, self.sc)
         if "language" not in metadata["paramMap"] or metadata["paramMap"]["language"] != "Python":
             return JavaMLReader(self.cls).load(path)
-        else:
-            uid, stages = PipelineSharedReadWrite.load(metadata, self.sc, path)
-            return Pipeline(stages=stages)._resetUid(uid)
+        uid, stages = PipelineSharedReadWrite.load(metadata, self.sc, path)
+        return Pipeline(stages=stages)._resetUid(uid)
 
 
 @inherit_doc
@@ -264,9 +263,8 @@ class PipelineModelReader(MLReader):
         metadata = DefaultParamsReader.loadMetadata(path, self.sc)
         if "language" not in metadata["paramMap"] or metadata["paramMap"]["language"] != "Python":
             return JavaMLReader(self.cls).load(path)
-        else:
-            uid, stages = PipelineSharedReadWrite.load(metadata, self.sc, path)
-            return PipelineModel(stages=stages)._resetUid(uid)
+        uid, stages = PipelineSharedReadWrite.load(metadata, self.sc, path)
+        return PipelineModel(stages=stages)._resetUid(uid)
 
 
 @inherit_doc
@@ -296,7 +294,7 @@ class PipelineModel(Model, MLReadable, MLWritable):
         :returns: new instance
         """
         if extra is None:
-            extra = dict()
+            extra = {}
         stages = [stage.copy(extra) for stage in self.stages]
         return PipelineModel(stages)
 
@@ -340,11 +338,9 @@ class PipelineModel(Model, MLReadable, MLWritable):
         for idx, stage in enumerate(self.stages):
             java_stages[idx] = stage._to_java()
 
-        _java_obj = JavaParams._new_java_obj(
+        return JavaParams._new_java_obj(
             "org.apache.spark.ml.PipelineModel", self.uid, java_stages
         )
-
-        return _java_obj
 
 
 @inherit_doc
@@ -418,5 +414,4 @@ class PipelineSharedReadWrite:
         """
         stageIdxDigits = len(str(numStages))
         stageDir = str(stageIdx).zfill(stageIdxDigits) + "_" + stageUid
-        stagePath = os.path.join(stagesDir, stageDir)
-        return stagePath
+        return os.path.join(stagesDir, stageDir)

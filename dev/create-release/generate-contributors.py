@@ -231,42 +231,37 @@ for commit in filtered_commits:
     print("  Processed commit %s authored by %s on %s" % (_hash, author, date))
 print("==================================================================================\n")
 
-# Write to contributors file ordered by author names
-# Each line takes the format " * Author name -- semi-colon delimited contributions"
-# e.g. * Andrew Or -- Bug fixes in Windows, Core, and Web UI; improvements in Core
-# e.g. * Tathagata Das -- Bug fixes and new features in Streaming
-contributors_file = open(contributors_file_name, "w")
-authors = list(author_info.keys())
-authors.sort()
-for author in authors:
-    contribution = ""
-    components = set()
-    issue_types = set()
-    for issue_type, comps in author_info[author].items():
-        components.update(comps)
-        issue_types.add(issue_type)
-    # If there is only one component, mention it only once
-    # e.g. Bug fixes, improvements in MLlib
-    if len(components) == 1:
-        contribution = "%s in %s" % (nice_join(issue_types), next(iter(components)))
-    # Otherwise, group contributions by issue types instead of modules
-    # e.g. Bug fixes in MLlib, Core, and Streaming; documentation in YARN
-    else:
-        contributions = ["%s in %s" % (issue_type, nice_join(comps))
-                         for issue_type, comps in author_info[author].items()]
-        contribution = "; ".join(contributions)
-    # Do not use python's capitalize() on the whole string to preserve case
-    assert contribution
-    contribution = contribution[0].capitalize() + contribution[1:]
-    # If the author name is invalid, use an intermediate format that
-    # can be translated through translate-contributors.py later
-    # E.g. andrewor14/SPARK-3425/SPARK-1157/SPARK-6672
-    if author in invalid_authors and invalid_authors[author]:
-        author = author + "/" + "/".join(invalid_authors[author])
-    # line = " * %s -- %s" % (author, contribution)
-    line = author
-    contributors_file.write(line + "\n")
-contributors_file.close()
+with open(contributors_file_name, "w") as contributors_file:
+    authors = list(author_info.keys())
+    authors.sort()
+    for author in authors:
+        contribution = ""
+        components = set()
+        issue_types = set()
+        for issue_type, comps in author_info[author].items():
+            components.update(comps)
+            issue_types.add(issue_type)
+        # If there is only one component, mention it only once
+        # e.g. Bug fixes, improvements in MLlib
+        if len(components) == 1:
+            contribution = "%s in %s" % (nice_join(issue_types), next(iter(components)))
+        # Otherwise, group contributions by issue types instead of modules
+        # e.g. Bug fixes in MLlib, Core, and Streaming; documentation in YARN
+        else:
+            contributions = ["%s in %s" % (issue_type, nice_join(comps))
+                             for issue_type, comps in author_info[author].items()]
+            contribution = "; ".join(contributions)
+        # Do not use python's capitalize() on the whole string to preserve case
+        assert contribution
+        contribution = contribution[0].capitalize() + contribution[1:]
+        # If the author name is invalid, use an intermediate format that
+        # can be translated through translate-contributors.py later
+        # E.g. andrewor14/SPARK-3425/SPARK-1157/SPARK-6672
+        if author in invalid_authors and invalid_authors[author]:
+            author = author + "/" + "/".join(invalid_authors[author])
+        # line = " * %s -- %s" % (author, contribution)
+        line = author
+        contributors_file.write(line + "\n")
 print("Contributors list is successfully written to %s!" % contributors_file_name)
 
 # Prompt the user to translate author names if necessary

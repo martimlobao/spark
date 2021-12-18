@@ -83,7 +83,7 @@ def identify_changed_files_from_git_commits(patch_sha, target_branch=None, targe
         raise AttributeError("must specify either target_branch or target_ref, not both")
     if target_branch is not None:
         diff_target = target_branch
-        run_cmd(['git', 'fetch', 'origin', str(target_branch+':'+target_branch)])
+        run_cmd(['git', 'fetch', 'origin', str(diff_target + ':' + diff_target)])
     else:
         diff_target = target_ref
     raw_output = subprocess.check_output(['git', 'diff', '--name-only', patch_sha, diff_target],
@@ -180,7 +180,7 @@ def determine_java_executable():
     # check if there is an executable at $JAVA_HOME/bin/java
     java_exe = which(os.path.join(java_home, "bin", "java")) if java_home else None
     # if the java_exe wasn't set, check for a `java` version on the $PATH
-    return java_exe if java_exe else which("java")
+    return java_exe or which("java")
 
 
 # -------------------------------------------------------------------------------------------------
@@ -307,10 +307,9 @@ def get_scala_profiles(scala_version):
 
     if scala_version in sbt_maven_scala_profiles:
         return sbt_maven_scala_profiles[scala_version]
-    else:
-        print("[error] Could not find", scala_version, "in the list. Valid options",
-              " are", sbt_maven_scala_profiles.keys())
-        sys.exit(int(os.environ.get("CURRENT_BLOCK", 255)))
+    print("[error] Could not find", scala_version, "in the list. Valid options",
+          " are", sbt_maven_scala_profiles.keys())
+    sys.exit(int(os.environ.get("CURRENT_BLOCK", 255)))
 
 
 def switch_scala_version(scala_version):
@@ -339,10 +338,9 @@ def get_hadoop_profiles(hadoop_version):
 
     if hadoop_version in sbt_maven_hadoop_profiles:
         return sbt_maven_hadoop_profiles[hadoop_version]
-    else:
-        print("[error] Could not find", hadoop_version, "in the list. Valid options",
-              " are", sbt_maven_hadoop_profiles.keys())
-        sys.exit(int(os.environ.get("CURRENT_BLOCK", 255)))
+    print("[error] Could not find", hadoop_version, "in the list. Valid options",
+          " are", sbt_maven_hadoop_profiles.keys())
+    sys.exit(int(os.environ.get("CURRENT_BLOCK", 255)))
 
 
 def build_spark_maven(extra_profiles):
@@ -463,11 +461,13 @@ def run_scala_tests(build_tool, extra_profiles, test_modules, excluded_tags, inc
         test_profiles += ['-Dtest.exclude.tags=' + ",".join(excluded_tags)]
 
     # set up java11 env if this is a pull request build with 'test-java11' in the title
-    if "ghprbPullTitle" in os.environ:
-        if "test-java11" in os.environ["ghprbPullTitle"].lower():
-            os.environ["JAVA_HOME"] = "/usr/java/jdk-11.0.1"
-            os.environ["PATH"] = "%s/bin:%s" % (os.environ["JAVA_HOME"], os.environ["PATH"])
-            test_profiles += ['-Djava.version=11']
+    if (
+        "ghprbPullTitle" in os.environ
+        and "test-java11" in os.environ["ghprbPullTitle"].lower()
+    ):
+        os.environ["JAVA_HOME"] = "/usr/java/jdk-11.0.1"
+        os.environ["PATH"] = "%s/bin:%s" % (os.environ["JAVA_HOME"], os.environ["PATH"])
+        test_profiles += ['-Djava.version=11']
 
     if build_tool == "maven":
         run_scala_tests_maven(test_profiles)
@@ -609,11 +609,7 @@ def main():
         build_tool = "sbt"
         scala_version = os.environ.get("SCALA_PROFILE")
         hadoop_version = os.environ.get("HADOOP_PROFILE", "hadoop3")
-        if "GITHUB_ACTIONS" in os.environ:
-            test_env = "github_actions"
-        else:
-            test_env = "local"
-
+        test_env = "github_actions" if "GITHUB_ACTIONS" in os.environ else "local"
     extra_profiles = get_hadoop_profiles(hadoop_version) + get_scala_profiles(scala_version)
 
     print("[info] Using build tool", build_tool, "with profiles",
@@ -636,7 +632,7 @@ def main():
             if is_apache_spark_ref:
                 changed_files = identify_changed_files_from_git_commits(
                     "HEAD", target_ref=os.environ["APACHE_SPARK_REF"])
-            elif is_github_prev_sha:
+            else:
                 changed_files = identify_changed_files_from_git_commits(
                     os.environ["GITHUB_SHA"], target_ref=os.environ["GITHUB_PREV_SHA"])
 
@@ -649,12 +645,10 @@ def main():
                 test_modules = list(set(modules_to_test).intersection(test_modules))
 
         changed_modules = test_modules
-        if len(changed_modules) == 0:
+        if not changed_modules:
             print("[info] There are no modules to test, exiting without testing.")
             return
 
-    # If we're running the tests in AMPLab Jenkins, calculate the diff from the targeted branch, and
-    # detect modules to test.
     elif test_env == "amplab_jenkins" and os.environ.get("AMP_JENKINS_PRB"):
         target_branch = os.environ["ghprbTargetBranch"]
         changed_files = identify_changed_files_from_git_commits("HEAD", target_branch=target_branch)

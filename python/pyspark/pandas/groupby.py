@@ -271,8 +271,11 @@ class GroupBy(Generic[FrameLike], metaclass=ABCMeta):
                 kwargs
             )
 
-        if not isinstance(func_or_funcs, (str, list)):
-            if not isinstance(func_or_funcs, dict) or not all(
+        if isinstance(func_or_funcs, (str, list)):
+            agg_cols = [col.name for col in self._agg_columns]
+            func_or_funcs = {col: func_or_funcs for col in agg_cols}
+
+        elif not isinstance(func_or_funcs, dict) or not all(
                 is_name_like_value(key)
                 and (
                     isinstance(value, str)
@@ -281,14 +284,10 @@ class GroupBy(Generic[FrameLike], metaclass=ABCMeta):
                 )
                 for key, value in func_or_funcs.items()
             ):
-                raise ValueError(
-                    "aggs must be a dict mapping from column name "
-                    "to aggregate functions (string or list of strings)."
-                )
-
-        else:
-            agg_cols = [col.name for col in self._agg_columns]
-            func_or_funcs = {col: func_or_funcs for col in agg_cols}
+            raise ValueError(
+                "aggs must be a dict mapping from column name "
+                "to aggregate functions (string or list of strings)."
+            )
 
         psdf: DataFrame = DataFrame(
             GroupBy._spark_groupby(self._psdf, func_or_funcs, self._groupkeys)
@@ -304,10 +303,13 @@ class GroupBy(Generic[FrameLike], metaclass=ABCMeta):
             )
 
         if not self._as_index:
-            should_drop_index = set(
-                i for i, gkey in enumerate(self._groupkeys) if gkey._psdf is not self._psdf
-            )
-            if len(should_drop_index) > 0:
+            should_drop_index = {
+                i
+                for i, gkey in enumerate(self._groupkeys)
+                if gkey._psdf is not self._psdf
+            }
+
+            if should_drop_index:
                 psdf = psdf.reset_index(level=should_drop_index, drop=True)
             if len(should_drop_index) < len(self._groupkeys):
                 psdf = psdf.reset_index()
@@ -496,7 +498,7 @@ class GroupBy(Generic[FrameLike], metaclass=ABCMeta):
         pyspark.pandas.Series.groupby
         pyspark.pandas.DataFrame.groupby
         """
-        assert ddof in (0, 1)
+        assert ddof in {0, 1}
 
         return self._reduce_for_stat_function(
             F.stddev_pop if ddof == 0 else F.stddev_samp, only_numeric=True
@@ -529,7 +531,7 @@ class GroupBy(Generic[FrameLike], metaclass=ABCMeta):
         pyspark.pandas.Series.groupby
         pyspark.pandas.DataFrame.groupby
         """
-        assert ddof in (0, 1)
+        assert ddof in {0, 1}
 
         return self._reduce_for_stat_function(
             F.var_pop if ddof == 0 else F.var_samp, only_numeric=True
@@ -1614,11 +1616,7 @@ class GroupBy(Generic[FrameLike], metaclass=ABCMeta):
         for psser, scol in zip(self._agg_columns, self._agg_columns_scols):
             name = psser._internal.data_spark_column_names[0]
 
-            if skipna:
-                order_column = scol.desc_nulls_last()
-            else:
-                order_column = scol.desc_nulls_first()
-
+            order_column = scol.desc_nulls_last() if skipna else scol.desc_nulls_first()
             window = Window.partitionBy(*groupkey_names).orderBy(
                 order_column, NATURAL_ORDER_COLUMN_NAME
             )
@@ -1697,11 +1695,7 @@ class GroupBy(Generic[FrameLike], metaclass=ABCMeta):
         for psser, scol in zip(self._agg_columns, self._agg_columns_scols):
             name = psser._internal.data_spark_column_names[0]
 
-            if skipna:
-                order_column = scol.asc_nulls_last()
-            else:
-                order_column = scol.asc_nulls_first()
-
+            order_column = scol.asc_nulls_last() if skipna else scol.asc_nulls_first()
             window = Window.partitionBy(*groupkey_names).orderBy(
                 order_column, NATURAL_ORDER_COLUMN_NAME
             )
@@ -2630,10 +2624,13 @@ class GroupBy(Generic[FrameLike], metaclass=ABCMeta):
             )
 
         if not self._as_index:
-            should_drop_index = set(
-                i for i, gkey in enumerate(self._groupkeys) if gkey._psdf is not self._psdf
-            )
-            if len(should_drop_index) > 0:
+            should_drop_index = {
+                i
+                for i, gkey in enumerate(self._groupkeys)
+                if gkey._psdf is not self._psdf
+            }
+
+            if should_drop_index:
                 psdf = psdf.reset_index(level=should_drop_index, drop=True)
             if len(should_drop_index) < len(self._groupkeys):
                 psdf = psdf.reset_index()
@@ -2801,28 +2798,27 @@ class DataFrameGroupBy(GroupBy[DataFrame]):
                 self._groupkeys,
                 dropna=self._dropna,
             )
+        if is_name_like_tuple(item):
+            item = [item]
+        elif is_name_like_value(item):
+            item = [(item,)]
         else:
-            if is_name_like_tuple(item):
-                item = [item]
-            elif is_name_like_value(item):
-                item = [(item,)]
-            else:
-                item = [i if is_name_like_tuple(i) else (i,) for i in item]
-            if not self._as_index:
-                groupkey_names = set(key._column_label for key in self._groupkeys)
-                for name in item:
-                    if name in groupkey_names:
-                        raise ValueError(
-                            "cannot insert {}, already exists".format(name_like_string(name))
-                        )
-            return DataFrameGroupBy(
-                self._psdf,
-                self._groupkeys,
-                as_index=self._as_index,
-                dropna=self._dropna,
-                column_labels_to_exclude=self._column_labels_to_exclude,
-                agg_columns=item,
-            )
+            item = [i if is_name_like_tuple(i) else (i,) for i in item]
+        if not self._as_index:
+            groupkey_names = {key._column_label for key in self._groupkeys}
+            for name in item:
+                if name in groupkey_names:
+                    raise ValueError(
+                        "cannot insert {}, already exists".format(name_like_string(name))
+                    )
+        return DataFrameGroupBy(
+            self._psdf,
+            self._groupkeys,
+            as_index=self._as_index,
+            dropna=self._dropna,
+            column_labels_to_exclude=self._column_labels_to_exclude,
+            agg_columns=item,
+        )
 
     def _apply_series_op(
         self,
@@ -2830,9 +2826,11 @@ class DataFrameGroupBy(GroupBy[DataFrame]):
         should_resolve: bool = False,
         numeric_only: bool = False,
     ) -> DataFrame:
-        applied = []
-        for column in self._agg_columns:
-            applied.append(op(cast(SeriesGroupBy, column.groupby(self._groupkeys))))
+        applied = [
+            op(cast(SeriesGroupBy, column.groupby(self._groupkeys)))
+            for column in self._agg_columns
+        ]
+
         if numeric_only:
             applied = [col for col in applied if isinstance(col.spark.data_type, NumericType)]
             if not applied:
@@ -2988,11 +2986,10 @@ class SeriesGroupBy(GroupBy[Series]):
         if numeric_only and not isinstance(self._agg_columns[0].spark.data_type, NumericType):
             raise DataError("No numeric types to aggregate")
         psser = op(self)
-        if should_resolve:
-            internal = psser._internal.resolved_copy
-            return first_series(DataFrame(internal))
-        else:
+        if not should_resolve:
             return psser.copy()
+        internal = psser._internal.resolved_copy
+        return first_series(DataFrame(internal))
 
     def _cleanup_and_return(self, pdf: pd.DataFrame) -> Series:
         return first_series(pdf).rename().rename(self._psser.name)

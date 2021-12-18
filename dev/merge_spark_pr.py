@@ -231,12 +231,10 @@ def cherry_pick(pr_num, merge_hash, default_branch):
 
 
 def fix_version_from_branch(branch, versions):
-    # Note: Assumes this is a sorted (newest->oldest) list of un-released versions
     if branch == "master":
         return versions[0]
-    else:
-        branch_ver = branch.replace("branch-", "")
-        return list(filter(lambda x: x.name.startswith(branch_ver), versions))[-1]
+    branch_ver = branch.replace("branch-", "")
+    return list(filter(lambda x: x.name.startswith(branch_ver), versions))[-1]
 
 
 def resolve_jira_issue(merge_branches, comment, default_jira_id=""):
@@ -346,15 +344,14 @@ def choose_jira_assignee(issue, asf_jira):
                 "Enter number of user, or userid, to assign to (blank to leave unassigned):")
             if raw_assignee == "":
                 return None
-            else:
-                try:
-                    id = int(raw_assignee)
-                    assignee = candidates[id]
-                except:
-                    # assume it's a user id, and try to assign (might fail, we just prompt again)
-                    assignee = asf_jira.user(raw_assignee)
-                asf_jira.assign_issue(issue.key, assignee.name)
-                return assignee
+            try:
+                id = int(raw_assignee)
+                assignee = candidates[id]
+            except:
+                # assume it's a user id, and try to assign (might fail, we just prompt again)
+                assignee = asf_jira.user(raw_assignee)
+            asf_jira.assign_issue(issue.key, assignee.name)
+            return assignee
         except KeyboardInterrupt:
             raise
         except:
@@ -547,7 +544,7 @@ def main():
 
     pick_prompt = "Would you like to pick %s into another branch?" % merge_hash
     while input("\n%s (y/n): " % pick_prompt).lower() == "y":
-        merged_refs = merged_refs + [cherry_pick(pr_num, merge_hash, latest_branch)]
+        merged_refs += [cherry_pick(pr_num, merge_hash, latest_branch)]
 
     if JIRA_IMPORTED:
         if JIRA_USERNAME and JIRA_PASSWORD:

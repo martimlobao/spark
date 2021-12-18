@@ -39,7 +39,7 @@ if __name__ == "__main__":
     # Evaluate clustering by computing Within Set Sum of Squared Errors
     def error(point):
         center = clusters.centers[clusters.predict(point)]
-        return sqrt(sum([x**2 for x in (point - center)]))
+        return sqrt(sum(x**2 for x in (point - center)))
 
     WSSSE = parsedData.map(lambda point: error(point)).reduce(lambda x, y: x + y)
     print("Within Set Sum of Squared Error = " + str(WSSSE))

@@ -69,14 +69,12 @@ github_client = Github(GITHUB_OAUTH_KEY)
 # Load known author translations that are cached locally
 known_translations = {}
 known_translations_file_name = "known_translations"
-known_translations_file = open(known_translations_file_name, "r")
-for line in known_translations_file:
-    if line.startswith("#"):
-        continue
-    [old_name, new_name] = line.strip("\n").split(" - ")
-    known_translations[old_name] = new_name
-known_translations_file.close()
-
+with open(known_translations_file_name, "r") as known_translations_file:
+    for line in known_translations_file:
+        if line.startswith("#"):
+            continue
+        [old_name, new_name] = line.strip("\n").split(" - ")
+        known_translations[old_name] = new_name
 # Open again in case the user adds new mappings
 known_translations_file = open(known_translations_file_name, "a")
 
@@ -240,15 +238,13 @@ known_translations_file.close()
 contributions.sort()
 all_authors = set()
 new_contributors_file_name = contributors_file_name + ".final"
-new_contributors_file = open(new_contributors_file_name, "w")
-for line in contributions:
-    author = line.strip(" * ").split(" -- ")[0]
-    if author in all_authors:
-        warnings.append("Detected duplicate author name %s. Please merge these manually." % author)
-    all_authors.add(author)
-    new_contributors_file.write(line)
-new_contributors_file.close()
-
+with open(new_contributors_file_name, "w") as new_contributors_file:
+    for line in contributions:
+        author = line.strip(" * ").split(" -- ")[0]
+        if author in all_authors:
+            warnings.append("Detected duplicate author name %s. Please merge these manually." % author)
+        all_authors.add(author)
+        new_contributors_file.write(line)
 print("Translated contributors list successfully written to %s!" % new_contributors_file_name)
 
 # Log any warnings encountered in the process

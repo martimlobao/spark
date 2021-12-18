@@ -18,6 +18,7 @@
 """
 Randomly sampled RDDs.
 """
+
 import sys
 
 from pyspark import SparkContext
@@ -62,9 +63,7 @@ if __name__ == "__main__":
     keyCountsA = keyedRDD.countByKey()
 
     #  Subsample, and count examples per label in sampled data.
-    fractions = {}
-    for k in keyCountsA.keys():
-        fractions[k] = fraction
+    fractions = {k: fraction for k in keyCountsA.keys()}
     sampledByKeyRDD = keyedRDD.sampleByKey(withReplacement=True, fractions=fractions)
     keyCountsB = sampledByKeyRDD.countByKey()
     sizeB = sum(keyCountsB.values())
@@ -76,10 +75,7 @@ if __name__ == "__main__":
     print('Key\tOrig\tSample')
     for k in sorted(keyCountsA.keys()):
         fracA = keyCountsA[k] / float(numExamples)
-        if sizeB != 0:
-            fracB = keyCountsB.get(k, 0) / float(sizeB)
-        else:
-            fracB = 0
+        fracB = keyCountsB.get(k, 0) / float(sizeB) if sizeB != 0 else 0
         print('%d\t%g\t%g' % (k, fracA, fracB))
 
     sc.stop()

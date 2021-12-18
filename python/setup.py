@@ -176,11 +176,9 @@ try:
             copytree(EXAMPLES_PATH, EXAMPLES_TARGET)
             copytree(DATA_PATH, DATA_TARGET)
             copytree(LICENSES_PATH, LICENSES_TARGET)
-    else:
-        # If we are not inside of SPARK_HOME verify we have the required symlink farm
-        if not os.path.exists(JARS_TARGET):
-            print("To build packaging must be in the python directory under the SPARK_HOME.",
-                  file=sys.stderr)
+    elif not os.path.exists(JARS_TARGET):
+        print("To build packaging must be in the python directory under the SPARK_HOME.",
+              file=sys.stderr)
 
     if not os.path.isdir(SCRIPTS_TARGET):
         print(incorrect_invocation_message, file=sys.stderr)

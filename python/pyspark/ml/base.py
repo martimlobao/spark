@@ -154,7 +154,7 @@ class Estimator(Params, metaclass=ABCMeta):
             fitted model(s)
         """
         if params is None:
-            params = dict()
+            params = {}
         if isinstance(params, (list, tuple)):
             models = [None] * len(params)
             for index, model in self.fitMultiple(dataset, params):
@@ -218,14 +218,13 @@ class Transformer(Params, metaclass=ABCMeta):
             transformed dataset
         """
         if params is None:
-            params = dict()
-        if isinstance(params, dict):
-            if params:
-                return self.copy(params)._transform(dataset)
-            else:
-                return self._transform(dataset)
-        else:
+            params = {}
+        if not isinstance(params, dict):
             raise TypeError("Params must be a param map but got %s." % type(params))
+        if params:
+            return self.copy(params)._transform(dataset)
+        else:
+            return self._transform(dataset)
 
 
 @inherit_doc
@@ -295,10 +294,9 @@ class UnaryTransformer(HasInputCol, HasOutputCol, Transformer):
     def _transform(self, dataset):
         self.transformSchema(dataset.schema)
         transformUDF = udf(self.createTransformFunc(), self.outputDataType())
-        transformedDataset = dataset.withColumn(
+        return dataset.withColumn(
             self.getOutputCol(), transformUDF(dataset[self.getInputCol()])
         )
-        return transformedDataset
 
 
 @inherit_doc

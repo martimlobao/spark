@@ -211,10 +211,7 @@ def _local_iterator_from_socket(sock_info, serializer):
 
                     # Load the partition data as a stream and read each item
                     self._read_iter = self._serializer.load_stream(self._sockfile)
-                    for item in self._read_iter:
-                        yield item
-
-                # An error occurred, join serving thread and raise any exceptions from the JVM
+                    yield from self._read_iter
                 elif self._read_status == -1:
                     self.jsocket_auth_server.getResult()
 
@@ -222,9 +219,6 @@ def _local_iterator_from_socket(sock_info, serializer):
             # If local iterator is not fully consumed,
             if self._read_status == 1:
                 try:
-                    # Finish consuming partition data stream
-                    for _ in self._read_iter:
-                        pass
                     # Tell Java to stop sending data and close connection
                     write_int(0, self._sockfile)
                     self._sockfile.flush()
@@ -648,7 +642,7 @@ class RDD:
 
         rand.shuffle(samples)
 
-        return samples[0:num]
+        return samples[:num]
 
     @staticmethod
     def _computeFractionForSampleSize(sampleSizeLowerBound, total, withReplacement):
@@ -674,9 +668,7 @@ class RDD:
         """
         fraction = float(sampleSizeLowerBound) / total
         if withReplacement:
-            numStDev = 5
-            if sampleSizeLowerBound < 12:
-                numStDev = 9
+            numStDev = 9 if sampleSizeLowerBound < 12 else 5
             return fraction + numStDev * sqrt(fraction / total)
         else:
             delta = 0.00005
@@ -938,8 +930,7 @@ class RDD:
                         "with error code %d" % (command, pipe.returncode)
                     )
                 else:
-                    for i in range(0):
-                        yield i
+                    yield from range(0)
 
             return (
                 x.rstrip(b"\n").decode("utf-8")
@@ -2157,7 +2148,7 @@ class RDD:
                         yield d
                         size += len(d)
 
-                    avg = int(size / n) >> 20
+                    avg = size // n >> 20
                     # let 1M < avg < 10M
                     if avg < 1:
                         batch = min(sys.maxsize, batch * 1.5)
@@ -2666,14 +2657,13 @@ class RDD:
         Serialized 1x Replicated
         """
         java_storage_level = self._jrdd.getStorageLevel()
-        storage_level = StorageLevel(
+        return StorageLevel(
             java_storage_level.useDisk(),
             java_storage_level.useMemory(),
             java_storage_level.useOffHeap(),
             java_storage_level.deserialized(),
             java_storage_level.replication(),
         )
-        return storage_level
 
     def _defaultReducePartitions(self):
         """

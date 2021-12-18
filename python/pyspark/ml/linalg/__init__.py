@@ -644,9 +644,8 @@ class SparseVector(Vector):
             self_values = self.values[self_cmind]
             if self_values.size == 0:
                 return 0.0
-            else:
-                other_cmind = np.in1d(other.indices, self.indices, assume_unique=True)
-                return np.dot(self_values, other.values[other_cmind])
+            other_cmind = np.in1d(other.indices, self.indices, assume_unique=True)
+            return np.dot(self_values, other.values[other_cmind])
 
         else:
             return self.dot(_convert_to_vector(other))
@@ -680,7 +679,7 @@ class SparseVector(Vector):
         """
         assert len(self) == _vector_size(other), "dimension mismatch"
 
-        if isinstance(other, np.ndarray) or isinstance(other, DenseVector):
+        if isinstance(other, (np.ndarray, DenseVector)):
             if isinstance(other, np.ndarray) and other.ndim != 1:
                 raise ValueError(
                     "Cannot call squared_distance with %d-dimensional array" % other.ndim
@@ -1067,11 +1066,10 @@ class SparseMatrix(Matrix):
                 raise ValueError(
                     "Expected colPtrs of size %d, got %d." % (numRows + 1, self.colPtrs.size)
                 )
-        else:
-            if self.colPtrs.size != numCols + 1:
-                raise ValueError(
-                    "Expected colPtrs of size %d, got %d." % (numCols + 1, self.colPtrs.size)
-                )
+        elif self.colPtrs.size != numCols + 1:
+            raise ValueError(
+                "Expected colPtrs of size %d, got %d." % (numCols + 1, self.colPtrs.size)
+            )
         if self.rowIndices.size != self.values.size:
             raise ValueError(
                 "Expected rowIndices of length %d, got %d."
@@ -1098,11 +1096,7 @@ class SparseMatrix(Matrix):
         (1,1) 4.0
         """
         spstr = "{0} X {1} ".format(self.numRows, self.numCols)
-        if self.isTransposed:
-            spstr += "CSRMatrix\n"
-        else:
-            spstr += "CSCMatrix\n"
-
+        spstr += "CSRMatrix\n" if self.isTransposed else "CSCMatrix\n"
         cur_col = 0
         smlist = []
 

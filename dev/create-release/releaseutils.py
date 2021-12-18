@@ -50,7 +50,7 @@ contributors_file_name = "contributors.txt"
 # Prompt the user to answer yes or no until they do so
 def yesOrNoPrompt(msg):
     response = input("%s [y/n]: " % msg)
-    while response != "y" and response != "n":
+    while response not in ["y", "n"]:
         return yesOrNoPrompt(msg)
     return response == "y"
 
@@ -202,9 +202,8 @@ def translate_issue_type(issue_type, issue_id, warnings):
     issue_type = issue_type.lower()
     if issue_type in known_issue_types:
         return known_issue_types[issue_type]
-    else:
-        warnings.append("Unknown issue type \"%s\" (see %s)" % (issue_type, issue_id))
-        return issue_type
+    warnings.append("Unknown issue type \"%s\" (see %s)" % (issue_type, issue_id))
+    return issue_type
 
 
 # Translate component names using a format appropriate for writing contributions
@@ -213,9 +212,8 @@ def translate_component(component, commit_hash, warnings):
     component = component.lower()
     if component in known_components:
         return known_components[component]
-    else:
-        warnings.append("Unknown component \"%s\" (see %s)" % (component, commit_hash))
-        return component
+    warnings.append("Unknown component \"%s\" (see %s)" % (component, commit_hash))
+    return component
 
 
 # Parse components in the commit message

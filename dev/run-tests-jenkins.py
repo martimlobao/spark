@@ -93,7 +93,7 @@ def run_pr_checks(pr_tests, ghprb_actual_commit, sha1):
     """
     # Ensure we save off the current HEAD to revert to
     current_pr_head = run_cmd(['git', 'rev-parse', 'HEAD'], return_output=True).strip()
-    pr_results = list()
+    pr_results = []
 
     for pr_test in pr_tests:
         test_name = pr_test + '.sh'
@@ -185,7 +185,7 @@ def main():
     commit_url = project_url + "/commit/" + ghprb_actual_commit
 
     # GitHub doesn't auto-link short hashes when submitted via the API, unfortunately. :(
-    short_commit_hash = ghprb_actual_commit[0:7]
+    short_commit_hash = ghprb_actual_commit[:7]
 
     # format: http://linux.die.net/man/1/timeout
     # must be less than the timeout configured on Jenkins. Usually Jenkins's timeout is higher

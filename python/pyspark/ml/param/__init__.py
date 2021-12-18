@@ -45,12 +45,11 @@ class Param:
 
     def _copy_new_parent(self, parent):
         """Copy the current param to a new parent, must be a dummy param."""
-        if self.parent == "undefined":
-            param = copy.copy(self)
-            param.parent = parent.uid
-            return param
-        else:
+        if self.parent != "undefined":
             raise ValueError("Cannot copy from non-dummy parent %s." % parent)
+        param = copy.copy(self)
+        param.parent = parent.uid
+        return param
 
     def __str__(self):
         return str(self.parent) + "__" + self.name
@@ -371,7 +370,7 @@ class Params(Identifiable, metaclass=ABCMeta):
             merged param map
         """
         if extra is None:
-            extra = dict()
+            extra = {}
         paramMap = self._defaultParamMap.copy()
         paramMap.update(self._paramMap)
         paramMap.update(extra)
@@ -555,8 +554,8 @@ class Params(Identifiable, metaclass=ABCMeta):
         """
         newUid = str(newUid)
         self.uid = newUid
-        newDefaultParamMap = dict()
-        newParamMap = dict()
+        newDefaultParamMap = {}
+        newParamMap = {}
         for param in self.params:
             newParam = copy.copy(param)
             newParam.parent = newUid

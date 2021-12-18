@@ -41,7 +41,9 @@ from sparktestsupport.shellutils import which, subprocess_check_output  # noqa
 from sparktestsupport.modules import all_modules, pyspark_sql  # noqa
 
 
-python_modules = dict((m.name, m) for m in all_modules if m.python_test_goals if m.name != 'root')
+python_modules = {
+    m.name: m for m in all_modules if m.python_test_goals if m.name != 'root'
+}
 
 
 def print_red(text):

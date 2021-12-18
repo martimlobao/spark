@@ -123,7 +123,7 @@ def _class_getnewargs(obj):
 
 
 def _enum_getnewargs(obj):
-    members = dict((e.name, e.value) for e in obj)
+    members = {e.name: e.value for e in obj}
     return (obj.__bases__, obj.__name__, obj.__qualname__, members,
             obj.__module__, _get_or_create_tracker_id(obj), None)
 
@@ -198,7 +198,7 @@ def _class_getstate(obj):
         else:
             # In the above if clause, registry is a set of weakrefs -- in
             # this case, registry is a WeakSet
-            clsdict["_abc_impl"] = [type_ for type_ in registry]
+            clsdict["_abc_impl"] = list(registry)
 
     if "__slots__" in clsdict:
         # pickle string length optimization: member descriptors of obj are
@@ -218,7 +218,7 @@ def _class_getstate(obj):
 def _enum_getstate(obj):
     clsdict, slotstate = _class_getstate(obj)
 
-    members = dict((e.name, e.value) for e in obj)
+    members = {e.name: e.value for e in obj}
     # Cleanup the clsdict that will be passed to _rehydrate_skeleton_class:
     # Those attributes are already handled by the metaclass.
     for attrname in ["_generate_next_value_", "_member_names_",
@@ -354,14 +354,13 @@ def _memoryview_reduce(obj):
 def _module_reduce(obj):
     if _should_pickle_by_reference(obj):
         return subimport, (obj.__name__,)
-    else:
-        # Some external libraries can populate the "__builtins__" entry of a
-        # module's `__dict__` with unpicklable objects (see #316). For that
-        # reason, we do not attempt to pickle the "__builtins__" entry, and
-        # restore a default value for it at unpickling time.
-        state = obj.__dict__.copy()
-        state.pop('__builtins__', None)
-        return dynamic_subimport, (obj.__name__, state)
+    # Some external libraries can populate the "__builtins__" entry of a
+    # module's `__dict__` with unpicklable objects (see #316). For that
+    # reason, we do not attempt to pickle the "__builtins__" entry, and
+    # restore a default value for it at unpickling time.
+    state = obj.__dict__.copy()
+    state.pop('__builtins__', None)
+    return dynamic_subimport, (obj.__name__, state)
 
 
 def _method_reduce(obj):
@@ -601,14 +600,13 @@ class CloudPickler(Pickler):
         try:
             return Pickler.dump(self, obj)
         except RuntimeError as e:
-            if "recursion" in e.args[0]:
-                msg = (
-                    "Could not pickle object as excessively deep recursion "
-                    "required."
-                )
-                raise pickle.PicklingError(msg) from e
-            else:
+            if "recursion" not in e.args[0]:
                 raise
+            msg = (
+                "Could not pickle object as excessively deep recursion "
+                "required."
+            )
+            raise pickle.PicklingError(msg) from e
 
     if pickle.HIGHEST_PROTOCOL >= 5:
         # `CloudPickler.dispatch` is only left for backward compatibility - note

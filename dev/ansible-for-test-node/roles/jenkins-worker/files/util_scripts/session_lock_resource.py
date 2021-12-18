@@ -143,9 +143,8 @@ def main():
         controlling_pid)
     if _daemonize(child_body_func):
         return 0
-    else:
-        print("Could not acquire lock")
-        return 1
+    print("Could not acquire lock")
+    return 1
 
 
 if __name__ == "__main__":

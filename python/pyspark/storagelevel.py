@@ -65,8 +65,8 @@ class StorageLevel:
         )
 
     def __str__(self) -> str:
-        result = ""
-        result += "Disk " if self.useDisk else ""
+        result = "" + ("Disk " if self.useDisk else "")
+
         result += "Memory " if self.useMemory else ""
         result += "OffHeap " if self.useOffHeap else ""
         result += "Deserialized " if self.deserialized else "Serialized "

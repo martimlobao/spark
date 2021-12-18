@@ -409,10 +409,8 @@ class PandasOnSparkFrameMethods:
                 ]
 
                 if not any(
-                    [
-                        SPARK_INDEX_NAME_PATTERN.match(index_field.struct_field.name)
-                        for index_field in index_fields
-                    ]
+                    SPARK_INDEX_NAME_PATTERN.match(index_field.struct_field.name)
+                    for index_field in index_fields
                 ):
                     index_names = [(index_field.struct_field.name,) for index_field in index_fields]
             internal = InternalFrame(

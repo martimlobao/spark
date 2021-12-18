@@ -75,7 +75,7 @@ class LogisticRegressionTest(SparkSessionTestCase):
             [1.0, 8.1093, 7.0, 10.0],
             [3.041, 5.0, 8.0, 11.0],
         ]
-        for i in range(0, len(expected)):
+        for i in range(len(expected)):
             self.assertTrue(
                 np.allclose(model.coefficientMatrix.toArray()[i], expected[i], atol=1e-4)
             )

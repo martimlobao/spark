@@ -649,7 +649,7 @@ class SparkContext:
                 # at least be in that function once. Here we do it by explicitly converting
                 # the empty iterator to a list, thus make sure worker reuse takes effect.
                 # See more details in SPARK-26549.
-                assert len(list(iterator)) == 0
+                assert not list(iterator)
                 return range(getStart(split), getStart(split + 1), step)
 
             return self.parallelize([], numSlices).mapPartitionsWithIndex(f)
@@ -701,10 +701,7 @@ class SparkContext:
             chunked_out = ChunkedStream(sock_file, 8192)
             serializer.dump_stream(data, chunked_out)
             chunked_out.close()
-            # this call will block until the server has read all the data and processed it (or
-            # throws an exception)
-            r = server.getResult()
-            return r
+            return server.getResult()
         else:
             # without encryption, we serialize to a file, and we read the file in java and
             # parallelize from there.
@@ -1179,7 +1176,7 @@ class SparkContext:
             cls_name = rdds[0]._jrdd.getClass().getCanonicalName()  # type: ignore[attr-defined]
             raise TypeError("Unsupported Java RDD class %s" % cls_name)
         jrdds = gw.new_array(cls, len(rdds))
-        for i in range(0, len(rdds)):
+        for i in range(len(rdds)):
             jrdds[i] = rdds[i]._jrdd  # type: ignore[attr-defined]
         return RDD(self._jsc.union(jrdds), self, rdds[0]._jrdd_deserializer)  # type: ignore[attr-defined]
 
@@ -1473,7 +1470,7 @@ class SparkContext:
         for x in jresources:
             name = jresources[x].name()
             jaddresses = jresources[x].addresses()
-            addrs = [addr for addr in jaddresses]
+            addrs = list(jaddresses)
             resources[name] = ResourceInformation(name, addrs)
         return resources
 

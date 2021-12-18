@@ -207,12 +207,11 @@ class MLUtils:
         the end of the input vector.
         """
         vec = _convert_to_vector(data)
-        if isinstance(vec, SparseVector):
-            newIndices = np.append(vec.indices, len(vec))
-            newValues = np.append(vec.values, 1.0)
-            return SparseVector(len(vec) + 1, newIndices, newValues)
-        else:
+        if not isinstance(vec, SparseVector):
             return _convert_to_vector(np.append(vec.toArray(), 1.0))
+        newIndices = np.append(vec.indices, len(vec))
+        newValues = np.append(vec.values, 1.0)
+        return SparseVector(len(vec) + 1, newIndices, newValues)
 
     @staticmethod
     @since("1.5.0")

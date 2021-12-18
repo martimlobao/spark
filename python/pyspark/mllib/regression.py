@@ -220,8 +220,7 @@ class LinearRegressionModel(LinearRegressionModelBase):
         )
         weights = _java2py(sc, java_model.weights())
         intercept = java_model.intercept()
-        model = LinearRegressionModel(weights, intercept)
-        return model
+        return LinearRegressionModel(weights, intercept)
 
 
 # train_func should take two parameters, namely data and initial_weights, and
@@ -421,8 +420,7 @@ class LassoModel(LinearRegressionModelBase):
         java_model = sc._jvm.org.apache.spark.mllib.regression.LassoModel.load(sc._jsc.sc(), path)
         weights = _java2py(sc, java_model.weights())
         intercept = java_model.intercept()
-        model = LassoModel(weights, intercept)
-        return model
+        return LassoModel(weights, intercept)
 
 
 class LassoWithSGD:
@@ -597,8 +595,7 @@ class RidgeRegressionModel(LinearRegressionModelBase):
         )
         weights = _java2py(sc, java_model.weights())
         intercept = java_model.intercept()
-        model = RidgeRegressionModel(weights, intercept)
-        return model
+        return RidgeRegressionModel(weights, intercept)
 
 
 class RidgeRegressionWithSGD:

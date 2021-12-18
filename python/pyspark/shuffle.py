@@ -367,8 +367,7 @@ class ExternalMerger(Merger):
 
         try:
             for i in range(self.partitions):
-                for v in self._merged_items(i):
-                    yield v
+                yield from self._merged_items(i)
                 self.data.clear()
 
                 # remove the merged partition
@@ -503,8 +502,7 @@ class ExternalSorter:
                     self.serializer.dump_stream(current_chunk, f)
 
                 def load(f):
-                    for v in self.serializer.load_stream(f):
-                        yield v
+                    yield from self.serializer.load_stream(f)
                     # close the file explicit once we consume all the items
                     # to avoid ResourceWarning in Python3
                     f.close()
@@ -586,11 +584,8 @@ class ExternalList:
             # read all items from disks first
             with os.fdopen(os.dup(self._file.fileno()), "rb") as f:
                 f.seek(0)
-                for v in self._ser.load_stream(f):
-                    yield v
-
-        for v in self.values:
-            yield v
+                yield from self._ser.load_stream(f)
+        yield from self.values
 
     def __len__(self):
         return self.count
@@ -659,8 +654,7 @@ class ExternalListOfList(ExternalList):
 
     def __iter__(self):
         for values in ExternalList.__iter__(self):
-            for v in values:
-                yield v
+            yield from values
 
 
 class GroupByKey:
@@ -826,8 +820,7 @@ class ExternalGroupBy(ExternalMerger):
             path = self._get_spill_dir(j)
             p = os.path.join(path, str(index))
             with open(p, "rb", 65536) as f:
-                for v in self.serializer.load_stream(f):
-                    yield v
+                yield from self.serializer.load_stream(f)
 
         disk_items = [load_partition(j) for j in range(self.spills)]
 

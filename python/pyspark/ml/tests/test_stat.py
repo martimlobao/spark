@@ -35,7 +35,7 @@ class ChiSquareTestTests(SparkSessionTestCase):
         # This line is hitting the collect bug described in #17218, commented for now.
         # pValues = res.select("degreesOfFreedom").collect())
         self.assertIsInstance(res, DataFrame)
-        fieldNames = set(field.name for field in res.schema.fields)
+        fieldNames = {field.name for field in res.schema.fields}
         expectedFields = ["pValues", "degreesOfFreedom", "statistics"]
         self.assertTrue(all(field in fieldNames for field in expectedFields))
 

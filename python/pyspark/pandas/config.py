@@ -387,7 +387,7 @@ def option_context(*args: Any) -> Iterator[None]:
     >>> print(get_option('display.max_rows'), get_option('compute.max_rows'))
     1000 1000
     """
-    if len(args) == 0 or len(args) % 2 != 0:
+    if not args or len(args) % 2 != 0:
         raise ValueError("Need to invoke as option_context(pat, val, [(pat, val), ...]).")
     opts = dict(zip(args[::2], args[1::2]))
     orig_opts = {key: get_option(key) for key in opts}
@@ -447,7 +447,7 @@ class DictWrapper:
         ]
         if len(candidates) == 1 and candidates[0] == canonical_key:
             return get_option(canonical_key)
-        elif len(candidates) == 0:
+        elif not candidates:
             raise OptionError(
                 "No such option: '{}'. Available options are [{}]".format(
                     key, ", ".join(list(_options_dict.keys()))

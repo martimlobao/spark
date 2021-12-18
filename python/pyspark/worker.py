@@ -162,7 +162,7 @@ def wrap_cogrouped_map_pandas_udf(f, return_type, argspec):
                 "Return type of the user-defined function should be "
                 "pandas.DataFrame, but is {}".format(type(result))
             )
-        if not len(result.columns) == len(return_type):
+        if len(result.columns) != len(return_type):
             raise RuntimeError(
                 "Number of columns of the returned pandas.DataFrame "
                 "doesn't match specified schema. "
@@ -188,7 +188,7 @@ def wrap_grouped_map_pandas_udf(f, return_type, argspec):
                 "Return type of the user-defined function should be "
                 "pandas.DataFrame, but is {}".format(type(result))
             )
-        if not len(result.columns) == len(return_type):
+        if len(result.columns) != len(return_type):
             raise RuntimeError(
                 "Number of columns of the returned pandas.DataFrame "
                 "doesn't match specified schema. "
@@ -277,13 +277,9 @@ def read_single_udf(pickleSer, infile, eval_type, runner_conf, udf_index):
     num_arg = read_int(infile)
     arg_offsets = [read_int(infile) for i in range(num_arg)]
     chained_func = None
-    for i in range(read_int(infile)):
+    for _ in range(read_int(infile)):
         f, return_type = read_command(pickleSer, infile)
-        if chained_func is None:
-            chained_func = f
-        else:
-            chained_func = chain(chained_func, f)
-
+        chained_func = f if chained_func is None else chain(chained_func, f)
     if eval_type == PythonEvalType.SQL_SCALAR_PANDAS_ITER_UDF:
         func = chained_func
     else:

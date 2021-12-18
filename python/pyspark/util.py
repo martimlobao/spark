@@ -425,16 +425,19 @@ class InheritableThread(threading.Thread):
                 thread_connection.close()
 
 
-if __name__ == "__main__":
-    if "pypy" not in platform.python_implementation().lower() and sys.version_info[:2] >= (3, 7):
-        import doctest
-        import pyspark.util
-        from pyspark.context import SparkContext
+if (
+    __name__ == "__main__"
+    and "pypy" not in platform.python_implementation().lower()
+    and sys.version_info[:2] >= (3, 7)
+):
+    import doctest
+    import pyspark.util
+    from pyspark.context import SparkContext
 
-        globs = pyspark.util.__dict__.copy()
-        globs["sc"] = SparkContext("local[4]", "PythonTest")
-        (failure_count, test_count) = doctest.testmod(pyspark.util, globs=globs)
-        globs["sc"].stop()
+    globs = pyspark.util.__dict__.copy()
+    globs["sc"] = SparkContext("local[4]", "PythonTest")
+    (failure_count, test_count) = doctest.testmod(pyspark.util, globs=globs)
+    globs["sc"].stop()
 
-        if failure_count:
-            sys.exit(-1)
+    if failure_count:
+        sys.exit(-1)

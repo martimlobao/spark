@@ -94,21 +94,21 @@ class ParamTypeConversionTests(PySparkTestCase):
         ]:
             vs = VectorSlicer(indices=indices)
             self.assertListEqual(vs.getIndices(), [1, 2])
-            self.assertTrue(all([type(v) == int for v in vs.getIndices()]))
+            self.assertTrue(all(type(v) == int for v in vs.getIndices()))
         self.assertRaises(TypeError, lambda: VectorSlicer(indices=["a", "b"]))
 
     def test_list_float(self):
         b = Bucketizer(splits=[1, 4])
         self.assertEqual(b.getSplits(), [1.0, 4.0])
-        self.assertTrue(all([type(v) == float for v in b.getSplits()]))
+        self.assertTrue(all(type(v) == float for v in b.getSplits()))
         self.assertRaises(TypeError, lambda: Bucketizer(splits=["a", 1.0]))
 
     def test_list_list_float(self):
         b = Bucketizer(splitsArray=[[-0.1, 0.5, 3], [-5, 1.5]])
         self.assertEqual(b.getSplitsArray(), [[-0.1, 0.5, 3.0], [-5.0, 1.5]])
-        self.assertTrue(all([type(v) == list for v in b.getSplitsArray()]))
-        self.assertTrue(all([type(v) == float for v in b.getSplitsArray()[0]]))
-        self.assertTrue(all([type(v) == float for v in b.getSplitsArray()[1]]))
+        self.assertTrue(all(type(v) == list for v in b.getSplitsArray()))
+        self.assertTrue(all(type(v) == float for v in b.getSplitsArray()[0]))
+        self.assertTrue(all(type(v) == float for v in b.getSplitsArray()[1]))
         self.assertRaises(TypeError, lambda: Bucketizer(splitsArray=["a", 1.0]))
         self.assertRaises(TypeError, lambda: Bucketizer(splitsArray=[[-5, 1.5], ["a", 1.0]]))
 
@@ -206,7 +206,7 @@ class ParamTests(SparkSessionTestCase):
 
     def test_hasparam(self):
         testParams = TestParams()
-        self.assertTrue(all([testParams.hasParam(p.name) for p in testParams.params]))
+        self.assertTrue(all(testParams.hasParam(p.name) for p in testParams.params))
         self.assertFalse(testParams.hasParam("notAParameter"))
         self.assertTrue(testParams.hasParam("maxIter"))
 
@@ -324,10 +324,10 @@ class ParamTests(SparkSessionTestCase):
         for k, v in extra.items():
             self.assertTrue(tp_copy.isDefined(k))
             self.assertEqual(tp_copy.getOrDefault(k), v)
-        copied_no_extra = {}
-        for k, v in tp_copy._paramMap.items():
-            if k not in extra:
-                copied_no_extra[k] = v
+        copied_no_extra = {
+            k: v for k, v in tp_copy._paramMap.items() if k not in extra
+        }
+
         self.assertEqual(tp._paramMap, copied_no_extra)
         self.assertEqual(tp._defaultParamMap, tp_copy._defaultParamMap)
         with self.assertRaises(TypeError):

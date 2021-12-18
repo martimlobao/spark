@@ -18,6 +18,7 @@
 """
 Estimator Transformer Param Example.
 """
+
 # $example on$
 from pyspark.ml.linalg import Vectors
 from pyspark.ml.classification import LogisticRegression
@@ -54,8 +55,7 @@ if __name__ == "__main__":
     print(model1.extractParamMap())
 
     # We may alternatively specify parameters using a Python dictionary as a paramMap
-    paramMap = {lr.maxIter: 20}
-    paramMap[lr.maxIter] = 30  # Specify 1 Param, overwriting the original maxIter.
+    paramMap = {lr.maxIter: 30}
     # Specify multiple Params.
     paramMap.update({lr.regParam: 0.1, lr.threshold: 0.55})  # type: ignore
 

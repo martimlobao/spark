@@ -533,14 +533,13 @@ class Frame(object, metaclass=ABCMeta):
         Name: value, dtype: int64
         """
 
-        if isinstance(func, tuple):
-            func, target = func
-            if target in kwargs:
-                raise ValueError("%s is both the pipe target and a keyword " "argument" % target)
-            kwargs[target] = self
-            return func(*args, **kwargs)
-        else:
+        if not isinstance(func, tuple):
             return func(self, *args, **kwargs)
+        func, target = func
+        if target in kwargs:
+            raise ValueError("%s is both the pipe target and a keyword " "argument" % target)
+        kwargs[target] = self
+        return func(*args, **kwargs)
 
     def to_numpy(self) -> np.ndarray:
         """
@@ -817,10 +816,7 @@ class Frame(object, metaclass=ABCMeta):
         else:
             column_labels = []
             for col in columns:
-                if is_name_like_tuple(col):
-                    label = cast(Label, col)
-                else:
-                    label = cast(Label, (col,))
+                label = cast(Label, col) if is_name_like_tuple(col) else cast(Label, (col,))
                 if label not in psdf._internal.column_labels:
                     raise KeyError(name_like_string(label))
                 column_labels.append(label)
@@ -832,7 +828,7 @@ class Frame(object, metaclass=ABCMeta):
         else:
             index_cols = index_col
 
-        if header is True and psdf._internal.column_labels_level > 1:
+        if header and psdf._internal.column_labels_level > 1:
             raise ValueError("to_csv only support one-level index column now")
         elif isinstance(header, list):
             sdf = psdf.to_spark(index_col)
@@ -1576,7 +1572,7 @@ class Frame(object, metaclass=ABCMeta):
 
         if numeric_only is None and axis == 0:
             numeric_only = True
-        elif numeric_only is True and axis == 1:
+        elif numeric_only and axis == 1:
             numeric_only = None
 
         return self._reduce_for_stat_function(
@@ -1634,7 +1630,7 @@ class Frame(object, metaclass=ABCMeta):
 
         if numeric_only is None and axis == 0:
             numeric_only = True
-        elif numeric_only is True and axis == 1:
+        elif numeric_only and axis == 1:
             numeric_only = None
 
         return self._reduce_for_stat_function(

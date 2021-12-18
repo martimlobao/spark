@@ -51,7 +51,7 @@ def corr(psdf: "ps.DataFrame", method: str = "pearson") -> pd.DataFrame:
     A  1.0 -1.0
     B -1.0  1.0
     """
-    assert method in ("pearson", "spearman")
+    assert method in {"pearson", "spearman"}
     ndf, column_labels = to_numeric_df(psdf)
     corr = Correlation.corr(ndf, CORRELATION_OUTPUT_COLUMN, method)
     pcorr = cast(pd.DataFrame, corr.toPandas())

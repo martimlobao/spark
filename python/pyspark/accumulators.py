@@ -36,14 +36,12 @@ _accumulatorRegistry = {}
 def _deserialize_accumulator(aid, zero_value, accum_param):
     from pyspark.accumulators import _accumulatorRegistry
 
-    # If this certain accumulator was deserialized, don't overwrite it.
     if aid in _accumulatorRegistry:
         return _accumulatorRegistry[aid]
-    else:
-        accum = Accumulator(aid, zero_value, accum_param)
-        accum._deserialized = True
-        _accumulatorRegistry[aid] = accum
-        return accum
+    accum = Accumulator(aid, zero_value, accum_param)
+    accum._deserialized = True
+    _accumulatorRegistry[aid] = accum
+    return accum
 
 
 class Accumulator:
@@ -234,9 +232,8 @@ class _UpdateRequestHandler(SocketServer.StreamRequestHandler):
             while not self.server.server_shutdown:
                 # Poll every 1 second for new data -- don't block in case of shutdown.
                 r, _, _ = select.select([self.rfile], [], [], 1)
-                if self.rfile in r:
-                    if func():
-                        break
+                if self.rfile in r and func():
+                    break
 
         def accum_updates():
             num_updates = read_int(self.rfile)
@@ -251,14 +248,13 @@ class _UpdateRequestHandler(SocketServer.StreamRequestHandler):
             received_token = self.rfile.read(len(auth_token))
             if isinstance(received_token, bytes):
                 received_token = received_token.decode("utf-8")
-            if received_token == auth_token:
-                accum_updates()
-                # we've authenticated, we can break out of the first loop now
-                return True
-            else:
+            if received_token != auth_token:
                 raise ValueError(
                     "The value of the provided token to the AccumulatorServer is not correct."
                 )
+            accum_updates()
+            # we've authenticated, we can break out of the first loop now
+            return True
 
         # first we keep polling till we've received the authentication token
         poll(authenticate_and_accum_updates)

@@ -44,11 +44,11 @@ class FeatureTests(SparkSessionTestCase):
             b0.params,
             [b0.inputCol, b0.inputCols, b0.outputCol, b0.outputCols, b0.threshold, b0.thresholds],
         )
-        self.assertTrue(all([~b0.isSet(p) for p in b0.params]))
+        self.assertTrue(all(~b0.isSet(p) for p in b0.params))
         self.assertTrue(b0.hasDefault(b0.threshold))
         self.assertEqual(b0.getThreshold(), 0.0)
         b0.setParams(inputCol="input", outputCol="output").setThreshold(1.0)
-        self.assertTrue(not all([b0.isSet(p) for p in b0.params]))
+        self.assertTrue(not all(b0.isSet(p) for p in b0.params))
         self.assertEqual(b0.getThreshold(), 1.0)
         self.assertEqual(b0.getInputCol(), "input")
         self.assertEqual(b0.getOutputCol(), "output")
@@ -274,7 +274,7 @@ class FeatureTests(SparkSessionTestCase):
         transformedDF = rf.fit(df).transform(df)
         observed = transformedDF.select("features").collect()
         expected = [[1.0, 0.0], [2.0, 1.0], [0.0, 0.0]]
-        for i in range(0, len(expected)):
+        for i in range(len(expected)):
             self.assertTrue(all(observed[i]["features"].toArray() == expected[i]))
 
     def test_string_indexer_handle_invalid(self):
@@ -375,7 +375,7 @@ class HashingTFTest(SparkSessionTestCase):
         output = hashingTF.transform(df)
         features = output.select("features").first().features.toArray()
         expected = Vectors.dense([0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0]).toArray()
-        for i in range(0, n):
+        for i in range(n):
             self.assertAlmostEqual(
                 features[i],
                 expected[i],

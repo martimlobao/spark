@@ -301,7 +301,7 @@ class JavaMLReader(MLReader):
         java_package = clazz.__module__.replace("pyspark", "org.apache.spark")
         if clazz.__name__ in ("Pipeline", "PipelineModel"):
             # Remove the last package name "pipeline" for Pipeline and PipelineModel.
-            java_package = ".".join(java_package.split(".")[0:-1])
+            java_package = ".".join(java_package.split(".")[:-1])
         return java_package + "." + clazz.__name__
 
     @classmethod
@@ -392,10 +392,11 @@ class DefaultParamsWriter(MLWriter):
     @staticmethod
     def extractJsonParams(instance, skipParams):
         paramMap = instance.extractParamMap()
-        jsonParams = {
-            param.name: value for param, value in paramMap.items() if param.name not in skipParams
+        return {
+            param.name: value
+            for param, value in paramMap.items()
+            if param.name not in skipParams
         }
-        return jsonParams
 
     @staticmethod
     def saveMetadata(instance, path, sc, extraMetadata=None, paramMap=None):
@@ -446,9 +447,9 @@ class DefaultParamsWriter(MLWriter):
                 jsonParams[p.name] = params[p]
 
         # Default param values
-        jsonDefaultParams = {}
-        for p in instance._defaultParamMap:
-            jsonDefaultParams[p.name] = instance._defaultParamMap[p]
+        jsonDefaultParams = {
+            p.name: instance._defaultParamMap[p] for p in instance._defaultParamMap
+        }
 
         basicMetadata = {
             "class": cls,
@@ -532,8 +533,7 @@ class DefaultParamsReader(MLReader):
         """
         metadataPath = os.path.join(path, "metadata")
         metadataStr = sc.textFile(metadataPath, 1).first()
-        loadedVals = DefaultParamsReader._parseMetaData(metadataStr, expectedClassName)
-        return loadedVals
+        return DefaultParamsReader._parseMetaData(metadataStr, expectedClassName)
 
     @staticmethod
     def _parseMetaData(metadataStr, expectedClassName=""):
@@ -600,8 +600,7 @@ class DefaultParamsReader(MLReader):
         else:
             pythonClassName = metadata["class"].replace("org.apache.spark", "pyspark")
         py_type = DefaultParamsReader.__get_class(pythonClassName)
-        instance = py_type.load(path)
-        return instance
+        return py_type.load(path)
 
 
 @inherit_doc

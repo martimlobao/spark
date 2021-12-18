@@ -79,7 +79,7 @@ def get_jira_prs():
         for pull in page_json:
             jira_issues = re.findall(JIRA_PROJECT_NAME + "-[0-9]{4,5}", pull['title'])
             for jira_issue in jira_issues:
-                result = result + [(jira_issue, pull)]
+                result += [(jira_issue, pull)]
 
         # Check if there is another page
         link_headers = list(filter(lambda k: k.startswith("Link"), page.headers))
@@ -91,19 +91,17 @@ def get_jira_prs():
 
 
 def set_max_pr(max_val):
-    f = open(MAX_FILE, 'w')
-    f.write("%s" % max_val)
-    f.close()
+    with open(MAX_FILE, 'w') as f:
+        f.write("%s" % max_val)
     print("Writing largest PR number seen: %s" % max_val)
 
 
 def get_max_pr():
-    if os.path.exists(MAX_FILE):
-        result = int(open(MAX_FILE, 'r').read())
-        print("Read largest PR number previously seen: %s" % result)
-        return result
-    else:
+    if not os.path.exists(MAX_FILE):
         return 0
+    result = int(open(MAX_FILE, 'r').read())
+    print("Read largest PR number previously seen: %s" % result)
+    return result
 
 
 def build_pr_component_dic(jira_prs):
@@ -116,7 +114,7 @@ def build_pr_component_dic(jira_prs):
         if pr['number'] in dic:
             dic[pr['number']][1].update(jira_components)
         else:
-            pr_components = set(label['name'].upper() for label in pr['labels'])
+            pr_components = {label['name'].upper() for label in pr['labels']}
             dic[pr['number']] = (pr_components, set(jira_components))
     return dic
 
@@ -154,7 +152,7 @@ for issue, pr in sorted(jira_prs, key=lambda kv: int(kv[1]['number'])):
     pr_num = int(pr['number'])
 
     print("Checking issue %s" % issue)
-    considered = considered + [pr_num]
+    considered += [pr_num]
 
     url = pr['html_url']
     title = "[GitHub] Pull Request #%s (%s)" % (pr['number'], pr['user']['login'])
@@ -185,7 +183,7 @@ for issue, pr in sorted(jira_prs, key=lambda kv: int(kv[1]['number'])):
     print("Added link %s <-> PR #%s" % (issue, pr['number']))
     num_updates += 1
 
-if len(considered) > 0:
+if considered:
     set_max_pr(max(considered))
 
 

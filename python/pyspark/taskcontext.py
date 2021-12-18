@@ -147,10 +147,7 @@ def _load_from_socket(
 
     # Collect result.
     len = read_int(sockfile)
-    res = []
-    for i in range(len):
-        res.append(UTF8Deserializer().loads(sockfile))
-
+    res = [UTF8Deserializer().loads(sockfile) for _ in range(len)]
     # Release resources.
     sockfile.close()
     sock.close()
@@ -277,9 +274,8 @@ class BarrierTaskContext(TaskContext):
             raise RuntimeError(
                 "Not supported to call getTaskInfos() before initialize " + "BarrierTaskContext."
             )
-        else:
-            addresses = cast(Dict[str, str], self._localProperties).get("addresses", "")
-            return [BarrierTaskInfo(h.strip()) for h in addresses.split(",")]
+        addresses = cast(Dict[str, str], self._localProperties).get("addresses", "")
+        return [BarrierTaskInfo(h.strip()) for h in addresses.split(",")]
 
 
 class BarrierTaskInfo:

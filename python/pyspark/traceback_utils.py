@@ -33,7 +33,7 @@ def first_spark_call():
     file, line, module, what = tb[len(tb) - 1]
     sparkpath = os.path.dirname(file)
     first_spark_frame = len(tb) - 1
-    for i in range(0, len(tb)):
+    for i in range(len(tb)):
         file, line, fun, what = tb[i]
         if file.startswith(sparkpath):
             first_spark_frame = i

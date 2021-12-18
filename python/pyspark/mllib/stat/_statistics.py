@@ -263,9 +263,9 @@ class Statistics:
 
         if isinstance(observed, Matrix):
             jmodel = callMLlibFunc("chiSqTest", observed)
+        elif expected and len(expected) != len(observed):
+            raise ValueError("`expected` should have same length with `observed`")
         else:
-            if expected and len(expected) != len(observed):
-                raise ValueError("`expected` should have same length with `observed`")
             jmodel = callMLlibFunc("chiSqTest", _convert_to_vector(observed), expected)
         return ChiSqTestResult(jmodel)
 

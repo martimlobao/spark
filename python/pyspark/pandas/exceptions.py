@@ -34,12 +34,12 @@ def code_change_hint(pandas_function: Optional[str], spark_target_function: Opti
         return "You are trying to use pandas function {}, use spark function {}".format(
             pandas_function, spark_target_function
         )
-    elif pandas_function is not None and spark_target_function is None:
+    elif pandas_function is not None:
         return (
             "You are trying to use pandas function {}, checkout the spark "
             "user guide to find a relevant function"
         ).format(pandas_function)
-    elif pandas_function is None and spark_target_function is not None:
+    elif spark_target_function is not None:
         return "Use spark function {}".format(spark_target_function)
     else:  # both none
         return "Checkout the spark user guide to find a relevant function"
@@ -55,7 +55,7 @@ class SparkPandasNotImplementedError(NotImplementedError):
         self.pandas_source = pandas_function
         self.spark_target = spark_target_function
         hint = code_change_hint(pandas_function, spark_target_function)
-        if len(description) > 0:
+        if description != '':
             description += " " + hint
         else:
             description = hint
@@ -81,34 +81,26 @@ class PandasNotImplementedError(NotImplementedError):
                 msg = "The method `{0}.{1}()` does not support `{2}` parameter. {3}".format(
                     class_name, method_name, arg_name, reason
                 )
-            else:
-                if deprecated:
-                    msg = (
-                        "The method `{0}.{1}()` is deprecated in pandas and will therefore "
-                        + "not be supported in pandas-on-Spark. {2}"
-                    ).format(class_name, method_name, reason)
-                else:
-                    if reason == "":
-                        reason = " yet."
-                    else:
-                        reason = ". " + reason
-                    msg = "The method `{0}.{1}()` is not implemented{2}".format(
-                        class_name, method_name, reason
-                    )
-        else:
-            if deprecated:
+            elif deprecated:
                 msg = (
-                    "The property `{0}.{1}()` is deprecated in pandas and will therefore "
+                    "The method `{0}.{1}()` is deprecated in pandas and will therefore "
                     + "not be supported in pandas-on-Spark. {2}"
-                ).format(class_name, property_name, reason)
+                ).format(class_name, method_name, reason)
             else:
-                if reason == "":
-                    reason = " yet."
-                else:
-                    reason = ". " + reason
-                msg = "The property `{0}.{1}()` is not implemented{2}".format(
-                    class_name, property_name, reason
+                reason = " yet." if reason == "" else ". " + reason
+                msg = "The method `{0}.{1}()` is not implemented{2}".format(
+                    class_name, method_name, reason
                 )
+        elif deprecated:
+            msg = (
+                "The property `{0}.{1}()` is deprecated in pandas and will therefore "
+                + "not be supported in pandas-on-Spark. {2}"
+            ).format(class_name, property_name, reason)
+        else:
+            reason = " yet." if reason == "" else ". " + reason
+            msg = "The property `{0}.{1}()` is not implemented{2}".format(
+                class_name, property_name, reason
+            )
         super().__init__(msg)
 
 

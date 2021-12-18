@@ -992,18 +992,17 @@ class _LogisticRegressionParams(
         Otherwise, returns :py:attr:`threshold` if set or its default value if unset.
         """
         self._checkThresholdConsistency()
-        if self.isSet(self.thresholds):
-            ts = self.getOrDefault(self.thresholds)
-            if len(ts) != 2:
-                raise ValueError(
-                    "Logistic Regression getThreshold only applies to"
-                    + " binary classification, but thresholds has length != 2."
-                    + "  thresholds: "
-                    + ",".join(ts)
-                )
-            return 1.0 / (1.0 + ts[0] / ts[1])
-        else:
+        if not self.isSet(self.thresholds):
             return self.getOrDefault(self.threshold)
+        ts = self.getOrDefault(self.thresholds)
+        if len(ts) != 2:
+            raise ValueError(
+                "Logistic Regression getThreshold only applies to"
+                + " binary classification, but thresholds has length != 2."
+                + "  thresholds: "
+                + ",".join(ts)
+            )
+        return 1.0 / (1.0 + ts[0] / ts[1])
 
     @since("1.5.0")
     def setThresholds(self, value):
@@ -1024,11 +1023,10 @@ class _LogisticRegressionParams(
         If neither are set, throw an error.
         """
         self._checkThresholdConsistency()
-        if not self.isSet(self.thresholds) and self.isSet(self.threshold):
-            t = self.getOrDefault(self.threshold)
-            return [1.0 - t, t]
-        else:
+        if self.isSet(self.thresholds) or not self.isSet(self.threshold):
             return self.getOrDefault(self.thresholds)
+        t = self.getOrDefault(self.threshold)
+        return [1.0 - t, t]
 
     def _checkThresholdConsistency(self):
         if self.isSet(self.threshold) and self.isSet(self.thresholds):
@@ -1418,18 +1416,17 @@ class LogisticRegressionModel(
         Gets summary (accuracy/precision/recall, objective history, total iterations) of model
         trained on the training set. An exception is thrown if `trainingSummary is None`.
         """
-        if self.hasSummary:
-            if self.numClasses <= 2:
-                return BinaryLogisticRegressionTrainingSummary(
-                    super(LogisticRegressionModel, self).summary
-                )
-            else:
-                return LogisticRegressionTrainingSummary(
-                    super(LogisticRegressionModel, self).summary
-                )
-        else:
+        if not self.hasSummary:
             raise RuntimeError(
                 "No training summary available for this %s" % self.__class__.__name__
+            )
+        if self.numClasses <= 2:
+            return BinaryLogisticRegressionTrainingSummary(
+                super(LogisticRegressionModel, self).summary
+            )
+        else:
+            return LogisticRegressionTrainingSummary(
+                super(LogisticRegressionModel, self).summary
             )
 
     def evaluate(self, dataset):
@@ -2132,18 +2129,17 @@ class RandomForestClassificationModel(
         Gets summary (accuracy/precision/recall, objective history, total iterations) of model
         trained on the training set. An exception is thrown if `trainingSummary is None`.
         """
-        if self.hasSummary:
-            if self.numClasses <= 2:
-                return BinaryRandomForestClassificationTrainingSummary(
-                    super(RandomForestClassificationModel, self).summary
-                )
-            else:
-                return RandomForestClassificationTrainingSummary(
-                    super(RandomForestClassificationModel, self).summary
-                )
-        else:
+        if not self.hasSummary:
             raise RuntimeError(
                 "No training summary available for this %s" % self.__class__.__name__
+            )
+        if self.numClasses <= 2:
+            return BinaryRandomForestClassificationTrainingSummary(
+                super(RandomForestClassificationModel, self).summary
+            )
+        else:
+            return RandomForestClassificationTrainingSummary(
+                super(RandomForestClassificationModel, self).summary
             )
 
     def evaluate(self, dataset):
@@ -3421,7 +3417,7 @@ class OneVsRest(Estimator, _OneVsRestParams, HasParallelism, MLReadable, MLWrita
             Copy of this instance
         """
         if extra is None:
-            extra = dict()
+            extra = {}
         newOvr = Params.copy(self, extra)
         if self.isSet(self.classifier):
             newOvr.setClassifier(self.getClassifier().copy(extra))
@@ -3525,11 +3521,10 @@ class OneVsRestReader(MLReader):
         metadata = DefaultParamsReader.loadMetadata(path, self.sc)
         if not DefaultParamsReader.isPythonParamsInstance(metadata):
             return JavaMLReader(self.cls).load(path)
-        else:
-            classifier = _OneVsRestSharedReadWrite.loadClassifier(path, self.sc)
-            ova = OneVsRest(classifier=classifier)._resetUid(metadata["uid"])
-            DefaultParamsReader.getAndSetParams(ova, metadata, skipParams=["classifier"])
-            return ova
+        classifier = _OneVsRestSharedReadWrite.loadClassifier(path, self.sc)
+        ova = OneVsRest(classifier=classifier)._resetUid(metadata["uid"])
+        DefaultParamsReader.getAndSetParams(ova, metadata, skipParams=["classifier"])
+        return ova
 
 
 @inherit_doc
@@ -3636,9 +3631,7 @@ class OneVsRestModel(Model, _OneVsRestParams, MLReadable, MLWritable):
         if self.getRawPredictionCol():
 
             def func(predictions):
-                predArray = []
-                for x in predictions:
-                    predArray.append(x)
+                predArray = list(predictions)
                 return Vectors.dense(predArray)
 
             rawPredictionUDF = udf(func, VectorUDT())
@@ -3678,7 +3671,7 @@ class OneVsRestModel(Model, _OneVsRestParams, MLReadable, MLWritable):
             Copy of this instance
         """
         if extra is None:
-            extra = dict()
+            extra = {}
         newModel = Params.copy(self, extra)
         newModel.models = [model.copy(extra) for model in self.models]
         return newModel
@@ -3754,17 +3747,16 @@ class OneVsRestModelReader(MLReader):
         metadata = DefaultParamsReader.loadMetadata(path, self.sc)
         if not DefaultParamsReader.isPythonParamsInstance(metadata):
             return JavaMLReader(self.cls).load(path)
-        else:
-            classifier = _OneVsRestSharedReadWrite.loadClassifier(path, self.sc)
-            numClasses = metadata["numClasses"]
-            subModels = [None] * numClasses
-            for idx in range(numClasses):
-                subModelPath = os.path.join(path, f"model_{idx}")
-                subModels[idx] = DefaultParamsReader.loadParamsInstance(subModelPath, self.sc)
-            ovaModel = OneVsRestModel(subModels)._resetUid(metadata["uid"])
-            ovaModel.set(ovaModel.classifier, classifier)
-            DefaultParamsReader.getAndSetParams(ovaModel, metadata, skipParams=["classifier"])
-            return ovaModel
+        classifier = _OneVsRestSharedReadWrite.loadClassifier(path, self.sc)
+        numClasses = metadata["numClasses"]
+        subModels = [None] * numClasses
+        for idx in range(numClasses):
+            subModelPath = os.path.join(path, f"model_{idx}")
+            subModels[idx] = DefaultParamsReader.loadParamsInstance(subModelPath, self.sc)
+        ovaModel = OneVsRestModel(subModels)._resetUid(metadata["uid"])
+        ovaModel.set(ovaModel.classifier, classifier)
+        DefaultParamsReader.getAndSetParams(ovaModel, metadata, skipParams=["classifier"])
+        return ovaModel
 
 
 @inherit_doc

@@ -244,7 +244,7 @@ def column_op(f: Callable[..., Column]) -> Callable[..., SeriesOrIndex]:
         else:
             raise ValueError(ERROR_MESSAGE_CANNOT_COMBINE)
 
-        if not all(self.name == col.name for col in cols):
+        if any(self.name != col.name for col in cols):
             index_ops = index_ops.rename(None)
 
         return index_ops
@@ -701,7 +701,7 @@ class IndexOpsMixin(object, metaclass=ABCMeta):
             ).isNotNull()
 
     def _is_monotonic(self, order: str) -> bool:
-        assert order in ("increasing", "decreasing")
+        assert order in {"increasing", "decreasing"}
 
         sdf = self._internal.spark_frame
 
@@ -1570,7 +1570,7 @@ class IndexOpsMixin(object, metaclass=ABCMeta):
         from pyspark.pandas.series import first_series
 
         assert (na_sentinel is None) or isinstance(na_sentinel, int)
-        assert sort is True
+        assert sort
 
         if isinstance(self.dtype, CategoricalDtype):
             categories = self.dtype.categories
@@ -1618,20 +1618,17 @@ class IndexOpsMixin(object, metaclass=ABCMeta):
         unique_to_code = {}
         if na_sentinel is not None:
             na_sentinel_code = na_sentinel
-        code = 0
-        for unique in uniques_list:
+        for code, unique in enumerate(uniques_list):
             if pd.isna(unique):
                 if na_sentinel is None:
                     na_sentinel_code = code
             else:
                 unique_to_code[unique] = code
-            code += 1
-
         kvs = list(
             chain(*([(SF.lit(unique), SF.lit(code)) for unique, code in unique_to_code.items()]))
         )
 
-        if len(kvs) == 0:  # uniques are all missing values
+        if not kvs:  # uniques are all missing values
             new_scol = SF.lit(na_sentinel_code)
         else:
             map_scol = F.create_map(*kvs)

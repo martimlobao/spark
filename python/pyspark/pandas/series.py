@@ -1039,28 +1039,27 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
         3    I am a rabbit
         dtype: object
         """
-        if isinstance(arg, dict):
-            is_start = True
-            # In case dictionary is empty.
-            current = F.when(SF.lit(False), SF.lit(None).cast(self.spark.data_type))
-
-            for to_replace, value in arg.items():
-                if is_start:
-                    current = F.when(self.spark.column == SF.lit(to_replace), value)
-                    is_start = False
-                else:
-                    current = current.when(self.spark.column == SF.lit(to_replace), value)
-
-            if hasattr(arg, "__missing__"):
-                tmp_val = arg[np._NoValue]  # type: ignore[attr-defined]
-                # Remove in case it's set in defaultdict.
-                del arg[np._NoValue]  # type: ignore[attr-defined]
-                current = current.otherwise(SF.lit(tmp_val))
-            else:
-                current = current.otherwise(SF.lit(None).cast(self.spark.data_type))
-            return self._with_new_scol(current)
-        else:
+        if not isinstance(arg, dict):
             return self.apply(arg)
+        is_start = True
+        # In case dictionary is empty.
+        current = F.when(SF.lit(False), SF.lit(None).cast(self.spark.data_type))
+
+        for to_replace, value in arg.items():
+            if is_start:
+                current = F.when(self.spark.column == SF.lit(to_replace), value)
+                is_start = False
+            else:
+                current = current.when(self.spark.column == SF.lit(to_replace), value)
+
+        if hasattr(arg, "__missing__"):
+            tmp_val = arg[np._NoValue]  # type: ignore[attr-defined]
+            # Remove in case it's set in defaultdict.
+            del arg[np._NoValue]  # type: ignore[attr-defined]
+            current = current.otherwise(SF.lit(tmp_val))
+        else:
+            current = current.otherwise(SF.lit(None).cast(self.spark.data_type))
+        return self._with_new_scol(current)
 
     @property
     def shape(self) -> Tuple[int]:
@@ -1206,11 +1205,10 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
         Name: num_legs, dtype: int64
         """
         psdf = self.to_frame().rename_axis(mapper=mapper, index=index, inplace=False)
-        if inplace:
-            self._update_anchor(psdf)
-            return None
-        else:
+        if not inplace:
             return first_series(psdf)
+        self._update_anchor(psdf)
+        return None
 
     @property
     def index(self) -> "ps.Index":
@@ -1452,11 +1450,7 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
         """
         # Make sure locals() call is at the top of the function so we don't capture local variables.
         args = locals()
-        if max_rows is not None:
-            psseries = self.head(max_rows)
-        else:
-            psseries = self
-
+        psseries = self.head(max_rows) if max_rows is not None else self
         return validate_arguments_and_invoke_function(
             psseries._to_internal_pandas(), self.to_string, pd.Series.to_string, args
         )
@@ -1542,7 +1536,10 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
         args = locals()
         psseries = self
         return validate_arguments_and_invoke_function(
-            psseries._to_internal_pandas(), self.to_latex, pd.Series.to_latex, args
+            psseries._to_internal_pandas(),
+            psseries.to_latex,
+            pd.Series.to_latex,
+            args,
         )
 
     to_latex.__doc__ = DataFrame.to_latex.__doc__
@@ -1665,11 +1662,10 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
         inplace = validate_bool_kwarg(inplace, "inplace")
         psdf = self._psdf[[self.name]].drop_duplicates(keep=keep)
 
-        if inplace:
-            self._update_anchor(psdf)
-            return None
-        else:
+        if not inplace:
             return first_series(psdf)
+        self._update_anchor(psdf)
+        return None
 
     def reindex(self, index: Optional[Any] = None, fill_value: Optional[Any] = None) -> "Series":
         """
@@ -1929,11 +1925,10 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
             psser = DataFrame(psser._psdf._internal.resolved_copy)._psser_for(self._column_label)
 
         inplace = validate_bool_kwarg(inplace, "inplace")
-        if inplace:
-            self._psdf._update_internal_frame(psser._psdf._internal, requires_same_anchor=False)
-            return None
-        else:
+        if not inplace:
             return psser.copy()
+        self._psdf._update_internal_frame(psser._psdf._internal, requires_same_anchor=False)
+        return None
 
     def _fillna(
         self,
@@ -2040,11 +2035,10 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
         inplace = validate_bool_kwarg(inplace, "inplace")
         # TODO: last two examples from pandas produce different results.
         psdf = self._psdf[[self.name]].dropna(axis=axis, inplace=False)
-        if inplace:
-            self._update_anchor(psdf)
-            return None
-        else:
+        if not inplace:
             return first_series(psdf)
+        self._update_anchor(psdf)
+        return None
 
     def clip(self, lower: Union[float, int] = None, upper: Union[float, int] = None) -> "Series":
         """
@@ -2087,18 +2081,17 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
         if lower is None and upper is None:
             return self
 
-        if isinstance(self.spark.data_type, NumericType):
-            scol = self.spark.column
-            if lower is not None:
-                scol = F.when(scol < lower, lower).otherwise(scol)
-            if upper is not None:
-                scol = F.when(scol > upper, upper).otherwise(scol)
-            return self._with_new_scol(
-                scol.alias(self._internal.data_spark_column_names[0]),
-                field=self._internal.data_fields[0],
-            )
-        else:
+        if not isinstance(self.spark.data_type, NumericType):
             return self
+        scol = self.spark.column
+        if lower is not None:
+            scol = F.when(scol < lower, lower).otherwise(scol)
+        if upper is not None:
+            scol = F.when(scol > upper, upper).otherwise(scol)
+        return self._with_new_scol(
+            scol.alias(self._internal.data_spark_column_names[0]),
+            field=self._internal.data_fields[0],
+        )
 
     def drop(
         self,
@@ -2225,48 +2218,47 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
             if index is not None:
                 raise ValueError("Cannot specify both 'labels' and 'index'")
             return self._drop(index=labels, level=level)
-        if index is not None:
-            internal = self._internal
-            if level is None:
-                level = 0
-            if level >= internal.index_level:
-                raise ValueError("'level' should be less than the number of indexes")
-
-            if is_name_like_tuple(index):
-                index_list = [cast(Label, index)]
-            elif is_name_like_value(index):
-                index_list = [(index,)]
-            elif all(is_name_like_value(idxes, allow_tuple=False) for idxes in index):
-                index_list = [(idex,) for idex in index]
-            elif not all(is_name_like_tuple(idxes) for idxes in index):
-                raise ValueError(
-                    "If the given index is a list, it "
-                    "should only contains names as all tuples or all non tuples "
-                    "that contain index names"
-                )
-            else:
-                index_list = cast(List[Label], index)
-
-            drop_index_scols = []
-            for idxes in index_list:
-                try:
-                    index_scols = [
-                        internal.index_spark_columns[lvl] == idx
-                        for lvl, idx in enumerate(idxes, level)
-                    ]
-                except IndexError:
-                    raise KeyError(
-                        "Key length ({}) exceeds index depth ({})".format(
-                            internal.index_level, len(idxes)
-                        )
-                    )
-                drop_index_scols.append(reduce(lambda x, y: x & y, index_scols))
-
-            cond = ~reduce(lambda x, y: x | y, drop_index_scols)
-
-            return DataFrame(internal.with_filter(cond))
-        else:
+        if index is None:
             raise ValueError("Need to specify at least one of 'labels' or 'index'")
+        internal = self._internal
+        if level is None:
+            level = 0
+        if level >= internal.index_level:
+            raise ValueError("'level' should be less than the number of indexes")
+
+        if is_name_like_tuple(index):
+            index_list = [cast(Label, index)]
+        elif is_name_like_value(index):
+            index_list = [(index,)]
+        elif all(is_name_like_value(idxes, allow_tuple=False) for idxes in index):
+            index_list = [(idex,) for idex in index]
+        elif not all(is_name_like_tuple(idxes) for idxes in index):
+            raise ValueError(
+                "If the given index is a list, it "
+                "should only contains names as all tuples or all non tuples "
+                "that contain index names"
+            )
+        else:
+            index_list = cast(List[Label], index)
+
+        drop_index_scols = []
+        for idxes in index_list:
+            try:
+                index_scols = [
+                    internal.index_spark_columns[lvl] == idx
+                    for lvl, idx in enumerate(idxes, level)
+                ]
+            except IndexError:
+                raise KeyError(
+                    "Key length ({}) exceeds index depth ({})".format(
+                        internal.index_level, len(idxes)
+                    )
+                )
+            drop_index_scols.append(reduce(lambda x, y: x & y, index_scols))
+
+        cond = ~reduce(lambda x, y: x | y, drop_index_scols)
+
+        return DataFrame(internal.with_filter(cond))
 
     def head(self, n: int = 5) -> "Series":
         """
@@ -2540,11 +2532,10 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
             by=[self.spark.column], ascending=ascending, na_position=na_position
         )
 
-        if inplace:
-            self._update_anchor(psdf)
-            return None
-        else:
+        if not inplace:
             return first_series(psdf)
+        self._update_anchor(psdf)
+        return None
 
     def sort_index(
         self,
@@ -2635,11 +2626,10 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
             axis=axis, level=level, ascending=ascending, kind=kind, na_position=na_position
         )
 
-        if inplace:
-            self._update_anchor(psdf)
-            return None
-        else:
+        if not inplace:
             return first_series(psdf)
+        self._update_anchor(psdf)
+        return None
 
     def swaplevel(
         self, i: Union[int, Name] = -2, j: Union[int, Name] = -1, copy: bool = True
@@ -2689,7 +2679,7 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
         2       b       y
         dtype: object
         """
-        assert copy is True
+        assert copy
 
         return first_series(self.to_frame().swaplevel(i, j, axis=0)).rename(self.name)
 
@@ -2722,7 +2712,7 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
         z    3
         dtype: int64
         """
-        assert copy is True
+        assert copy
 
         i = validate_axis(i)
         j = validate_axis(j)
@@ -3207,15 +3197,14 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
 
         if should_infer_schema:
             return self.pandas_on_spark._transform_batch(apply_each, None)
-        else:
-            sig_return = infer_return_type(func)
-            if not isinstance(sig_return, ScalarType):
-                raise ValueError(
-                    "Expected the return type of this function to be of scalar type, "
-                    "but found type {}".format(sig_return)
-                )
-            return_type = cast(ScalarType, sig_return)
-            return self.pandas_on_spark._transform_batch(apply_each, return_type)
+        sig_return = infer_return_type(func)
+        if not isinstance(sig_return, ScalarType):
+            raise ValueError(
+                "Expected the return type of this function to be of scalar type, "
+                "but found type {}".format(sig_return)
+            )
+        return_type = cast(ScalarType, sig_return)
+        return self.pandas_on_spark._transform_batch(apply_each, return_type)
 
     # TODO: not all arguments are implemented comparing to pandas' for now.
     def aggregate(self, func: Union[str, List[str]]) -> Union[Scalar, "Series"]:
@@ -3370,15 +3359,11 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
         if axis != 0:
             raise NotImplementedError('axis should be either 0 or "index" currently.')
 
-        if isinstance(func, list):
-            applied = []
-            for f in func:
-                applied.append(self.apply(f, args=args, **kwargs).rename(f.__name__))
-
-            internal = self._internal.with_new_columns(applied)
-            return DataFrame(internal)
-        else:
+        if not isinstance(func, list):
             return self.apply(func, args=args, **kwargs)
+        applied = [self.apply(f, args=args, **kwargs).rename(f.__name__) for f in func]
+        internal = self._internal.with_new_columns(applied)
+        return DataFrame(internal)
 
     def round(self, decimals: int = 0) -> "Series":
         """
@@ -3600,10 +3585,9 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
         if self._internal.index_level > 1:
             raise NotImplementedError("rank do not support MultiIndex now")
 
-        if ascending:
-            asc_func = lambda scol: scol.asc()
-        else:
-            asc_func = lambda scol: scol.desc()
+        asc_func = (
+            (lambda scol: scol.asc()) if ascending else (lambda scol: scol.desc())
+        )
 
         if method == "first":
             window = (
@@ -4113,7 +4097,6 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
                 column_labels=[self._column_label],
                 data_fields=[self._internal.data_fields[0]],
             )
-            return first_series(DataFrame(internal))
         else:
             internal = internal.copy(
                 spark_frame=sdf,
@@ -4124,7 +4107,8 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
                 index_names=self._internal.index_names[len(item) :],
                 data_spark_columns=[scol_for(sdf, internal.data_spark_column_names[0])],
             )
-            return first_series(DataFrame(internal))
+
+        return first_series(DataFrame(internal))
 
     def copy(self, deep: bool = True) -> "Series":
         """
@@ -4435,13 +4419,13 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
         to_replace = list(to_replace) if isinstance(to_replace, tuple) else to_replace
         value = list(value) if isinstance(value, tuple) else value
         if isinstance(to_replace, list) and isinstance(value, list):
-            if not len(to_replace) == len(value):
+            if len(to_replace) != len(value):
                 raise ValueError(
                     "Replacement lists must match in length. Expecting {} got {}".format(
                         len(to_replace), len(value)
                     )
                 )
-            to_replace = {k: v for k, v in zip(to_replace, value)}
+            to_replace = dict(zip(to_replace, value))
         if isinstance(to_replace, dict):
             is_start = True
             if len(to_replace) == 0:
@@ -5252,9 +5236,7 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
         sdf = self._internal.spark_frame
         spark_column = self.spark.column
         avg = unpack_scalar(sdf.select(F.avg(spark_column)))
-        mad = unpack_scalar(sdf.select(F.avg(F.abs(spark_column - avg))))
-
-        return mad
+        return unpack_scalar(sdf.select(F.avg(F.abs(spark_column - avg))))
 
     def unstack(self, level: int = -1) -> DataFrame:
         """
@@ -5848,10 +5830,10 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
                     [self.rename(self_column_label), other.rename(other_column_label)]
                 )
             )
-        else:
-            if get_option("compute.eager_check") and not self.index.equals(other.index):
-                raise ValueError("Can only compare identically-labeled Series objects")
+        elif get_option("compute.eager_check") and not self.index.equals(other.index):
+            raise ValueError("Can only compare identically-labeled Series objects")
 
+        else:
             combined = combine_frames(self.to_frame(), other.to_frame())
 
         this_column_label = "self"
@@ -5993,11 +5975,7 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
         self_df = self.to_frame()
         left, right = self_df.align(other, join=join, axis=axis, copy=False)
 
-        if left is self_df:
-            left_ser = self
-        else:
-            left_ser = first_series(left).rename(self.name)
-
+        left_ser = self if left is self_df else first_series(left).rename(self.name)
         return (left_ser.copy(), right.copy()) if copy else (left_ser, right)
 
     def between_time(
@@ -6264,11 +6242,10 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
             psser = psser_or_scol
         else:
             psser = self._with_new_scol(cast(Column, psser_or_scol))
-        if should_resolve:
-            internal = psser._internal.resolved_copy
-            return first_series(DataFrame(internal))
-        else:
+        if not should_resolve:
             return psser.copy()
+        internal = psser._internal.resolved_copy
+        return first_series(DataFrame(internal))
 
     def _reduce_for_stat_function(
         self,

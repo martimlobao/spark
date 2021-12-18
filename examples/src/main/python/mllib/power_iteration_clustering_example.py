@@ -26,7 +26,7 @@ if __name__ == "__main__":
     # $example on$
     # Load and parse the data
     data = sc.textFile("data/mllib/pic_data.txt")
-    similarities = data.map(lambda line: tuple([float(x) for x in line.split(' ')]))
+    similarities = data.map(lambda line: tuple(float(x) for x in line.split(' ')))
 
     # Cluster the data into two classes using PowerIterationClustering
     model = PowerIterationClustering.train(similarities, 2, 10)

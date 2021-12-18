@@ -30,6 +30,7 @@ r"""
     examples/src/main/python/sql/streaming/structured_sessionization.py
     localhost 9999`
 """
+
 import sys
 
 from pyspark.sql import SparkSession
@@ -38,7 +39,7 @@ from pyspark.sql.functions import split
 from pyspark.sql.functions import count, session_window
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3 and len(sys.argv) != 2:
+    if len(sys.argv) not in [3, 2]:
         msg = "Usage: structured_sessionization.py <hostname> <port> "
         print(msg, file=sys.stderr)
         sys.exit(-1)

@@ -3260,14 +3260,13 @@ class QuantileDiscretizer(
                 outputCol=self.getOutputCol(),
                 handleInvalid=self.getHandleInvalid(),
             )
-        else:
-            splitsArrayList = [list(x) for x in list(java_model.getSplitsArray())]
-            return Bucketizer(
-                splitsArray=splitsArrayList,
-                inputCols=self.getInputCols(),
-                outputCols=self.getOutputCols(),
-                handleInvalid=self.getHandleInvalid(),
-            )
+        splitsArrayList = [list(x) for x in list(java_model.getSplitsArray())]
+        return Bucketizer(
+            splitsArray=splitsArrayList,
+            inputCols=self.getInputCols(),
+            outputCols=self.getOutputCols(),
+            handleInvalid=self.getHandleInvalid(),
+        )
 
 
 class _RobustScalerParams(HasInputCol, HasOutputCol, HasRelativeError):

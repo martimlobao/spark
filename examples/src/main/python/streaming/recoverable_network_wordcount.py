@@ -79,11 +79,10 @@ def createContext(host, port, outputPath):
 
         # Use excludeList to drop words and use droppedWordsCounter to count them
         def filterFunc(wordCount):
-            if wordCount[0] in excludeList.value:
-                droppedWordsCounter.add(wordCount[1])
-                return False
-            else:
+            if wordCount[0] not in excludeList.value:
                 return True
+            droppedWordsCounter.add(wordCount[1])
+            return False
 
         counts = "Counts at time %s %s" % (time, rdd.filter(filterFunc).collect())
         print(counts)

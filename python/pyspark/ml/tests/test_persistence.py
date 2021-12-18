@@ -254,7 +254,7 @@ class PersistenceTest(SparkSessionTestCase):
         """
         self.assertEqual(m1.uid, m2.uid)
         self.assertEqual(type(m1), type(m2))
-        if isinstance(m1, JavaParams) or isinstance(m1, Transformer):
+        if isinstance(m1, (JavaParams, Transformer)):
             self.assertEqual(len(m1.params), len(m2.params))
             for p in m1.params:
                 self._compare_params(m1, m2, p)
@@ -266,7 +266,7 @@ class PersistenceTest(SparkSessionTestCase):
             self.assertEqual(len(m1.stages), len(m2.stages))
             for s1, s2 in zip(m1.stages, m2.stages):
                 self._compare_pipelines(s1, s2)
-        elif isinstance(m1, OneVsRest) or isinstance(m1, OneVsRestModel):
+        elif isinstance(m1, (OneVsRest, OneVsRestModel)):
             for p in m1.params:
                 self._compare_params(m1, m2, p)
             if isinstance(m1, OneVsRestModel):
